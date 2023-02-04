@@ -1,0 +1,3 @@
+[submodule "lib-tsniimash.git"]
+	path = lib-tsniimash
+	url = git@github.com:cansat-tsniimash/lib-tsniimash.git
