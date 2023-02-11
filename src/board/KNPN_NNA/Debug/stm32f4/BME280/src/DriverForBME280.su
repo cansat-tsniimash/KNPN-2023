@@ -1,0 +1,9 @@
+DriverForBME280.c:21:29:bme_spi_read	32	static
+DriverForBME280.c:39:29:bme_spi_write	32	static
+DriverForBME280.c:57:13:bme_delay_us	16	static
+DriverForBME280.c:69:29:bme_spi_read_sr	32	static
+DriverForBME280.c:89:29:bme_spi_write_sr	32	static
+DriverForBME280.c:110:13:bme_delay_us_sr	16	static
+DriverForBME280.c:125:6:bme_init_default	24	static
+DriverForBME280.c:160:6:bme_init_default_sr	24	static
+DriverForBME280.c:192:20:bme_read_data	96	static

@@ -1,0 +1,7 @@
+DLSM.c:10:16:lsmd6s3_write	32	static
+DLSM.c:25:16:lsm6ds3_read	32	static
+DLSM.c:41:16:lsmd6s3_write_sr	32	static
+DLSM.c:59:16:lsm6ds3_read_sr	32	static
+DLSM.c:78:6:lsmset	24	static
+DLSM.c:100:6:lsmset_sr	24	static
+DLSM.c:121:6:lsmread	48	static

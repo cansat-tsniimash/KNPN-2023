@@ -1,0 +1,17 @@
+nrf24_lower_api_stm32.c:18:13:_nrf24_CS	24	static
+nrf24_lower_api_stm32.c:36:13:_nrf24_CS_sr	24	static
+nrf24_lower_api_stm32.c:54:6:nrf24_read_register	32	static
+nrf24_lower_api_stm32.c:71:6:nrf24_write_register	32	static
+nrf24_lower_api_stm32.c:86:6:nrf24_read_rx_payload	32	static
+nrf24_lower_api_stm32.c:109:6:nrf24_write_tx_payload	32	static
+nrf24_lower_api_stm32.c:130:6:nrf24_flush_rx	24	static
+nrf24_lower_api_stm32.c:139:6:nrf24_flush_tx	24	static
+nrf24_lower_api_stm32.c:149:6:nrf24_ruse_tx_pl	24	static
+nrf24_lower_api_stm32.c:158:6:nrf24_get_rx_payload_size	24	static
+nrf24_lower_api_stm32.c:175:6:nrf24_write_ack_payload	32	static
+nrf24_lower_api_stm32.c:188:6:nrf24_get_status	32	static
+nrf24_lower_api_stm32.c:197:6:nrf24_ce_activate	24	static
+nrf24_lower_api_stm32.c:203:6:_nrf24_CE	24	static
+nrf24_lower_api_stm32.c:217:6:_nrf24_CE_sr	24	static
+nrf24_lower_api_stm32.c:227:6:nrf24_spi_init	24	static
+nrf24_lower_api_stm32.c:235:6:nrf24_spi_init_sr	24	static

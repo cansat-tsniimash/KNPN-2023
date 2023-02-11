@@ -1,0 +1,3 @@
+dwt_delay.c:7:5:dwt_delay_init	4	static,ignoring_inline_asm
+dwt_delay.c:41:6:dwt_delay_us	32	static
+dwt_delay.c:52:6:dwt_delay_ms	32	static
