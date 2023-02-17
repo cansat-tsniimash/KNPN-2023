@@ -33,7 +33,7 @@
 		<link>
 			<name>stm32f4</name>
 			<type>2</type>
-			<location>D:/CanSat/2022-2023/KNPN-2023/lib-tsniimash/stm32f4</location>
+			<locationURI>$%7BPARENT-3-PROJECT_LOC%7D/lib-tsniimash/stm32f4</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

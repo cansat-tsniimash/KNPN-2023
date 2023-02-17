@@ -140,8 +140,16 @@ int app_main(){
 		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
 		nrf24_fifo_write(&nrf, buf, 32,false);
 if(tx_status == NRF24_FIFO_FULL){
+	nrf24_fifo_flush_tx(&nrf);
 
 }
+if(rx_status == NRF24_FIFO_FULL){
+	nrf24_fifo_flush_rx(&nrf);
+
+}
+nrf24_mode_tx(&nrf);
+
+
 
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);

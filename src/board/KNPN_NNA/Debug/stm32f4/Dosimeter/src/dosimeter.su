@@ -1,6 +1,0 @@
-dosimeter.c:16:6:dosimeter_1sec_past	8	static
-dosimeter.c:24:13:cyclobuffer_update	32	static
-dosimeter.c:51:6:Dosimeter_Callback	16	static
-dosimeter.c:60:10:Dosimeter_Get_TPS	8	static
-dosimeter.c:65:10:Dosimeter_Get_TPM	16	static
-dosimeter.c:72:10:Dosimeter_Get_Sum	4	static

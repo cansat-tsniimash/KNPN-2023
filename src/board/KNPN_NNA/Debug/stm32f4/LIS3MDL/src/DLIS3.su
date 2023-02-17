@@ -1,7 +1,0 @@
-DLIS3.c:10:16:lis3mdl_write	32	static
-DLIS3.c:26:16:lis3mdl_read	32	static
-DLIS3.c:42:6:lisset	24	static
-DLIS3.c:79:16:lis3mdl_write_sr	32	static
-DLIS3.c:96:16:lis3mdl_read_sr	32	static
-DLIS3.c:112:6:lisset_sr	24	static
-DLIS3.c:149:6:lisread	40	static

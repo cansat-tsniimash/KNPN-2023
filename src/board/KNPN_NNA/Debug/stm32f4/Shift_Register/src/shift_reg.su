@@ -1,9 +1,0 @@
-shift_reg.c:6:6:shift_reg_init	16	static
-shift_reg.c:12:6:shift_reg_push_8	16	static
-shift_reg.c:17:6:shift_reg_push_16	24	static
-shift_reg.c:23:6:shift_reg_latch	16	static
-shift_reg.c:30:6:shift_reg_oe	16	static
-shift_reg.c:38:6:shift_reg_write_8	16	static
-shift_reg.c:44:6:shift_reg_write_16	24	static
-shift_reg.c:51:6:shift_reg_write_bit_8	24	static
-shift_reg.c:57:6:shift_reg_write_bit_16	24	static
