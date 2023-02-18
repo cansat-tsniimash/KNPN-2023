@@ -10,7 +10,8 @@
 #include <stm32f4xx_hal.h>
 #include "nRF24L01_PL/nrf24_upper_api.h"
 #include "nRF24L01_PL/nrf24_lower_api_stm32.h"
-
+#include "Photorezistor/photorezistor.h"
+#include "1Wire_DS18B20/one_wire.h"
 /*typedef struct {
 	SPI_HandleTypeDef *bus; // Хэндлер шины SPI
 	GPIO_TypeDef *latch_port; // Порт Latch-а, например, GPIOA, GPIOB, etc
@@ -23,6 +24,7 @@
 }*/
 
 extern SPI_HandleTypeDef hspi2;
+extern ADC_HandleTypeDef hadc1;
 
 float lsm_gyro[3];
 float lsm_temp;
@@ -31,9 +33,55 @@ float lis[3];
 float lis_temp;
 struct bme280_data bme_data;
 struct bme280_dev bme;
+float photor;
+uint16_t ds_temp;
 uint8_t buf[32] = {1, 2, 3};
 nrf24_fifo_status_t  rx_status;
 nrf24_fifo_status_t  tx_status;
+
+typedef struct paket_3{
+	uint32_t time_pak;
+	uint16_t n;
+	uint8_t flag;
+	int16_t temp;
+	float latitude;
+	float longitude;
+	int16_t height;
+	uint32_t time_s;
+	uint32_t time_us;
+	uint8_t fix;
+	uint16_t crc;
+}paket_3;
+
+typedef struct paket_1{
+	uint32_t time_pak;
+	uint16_t n;
+	uint8_t flag;
+	int16_t temp_bme;
+	uint32_t press;
+	int32_t flow;
+	int16_t u_bus;
+	int8_t s;
+	uint32_t photor;
+	uint16_t crc;
+}paket_1;
+
+typedef struct paket_2{
+	uint32_t time_pak;
+	uint16_t n;
+	uint8_t flag;
+	int16_t lis_x;
+	int16_t lis_y;
+	int16_t lis_z;
+	int16_t lsm_a_x;
+	int16_t ism_a_y;
+	int16_t lsm_a_z;
+	int16_t lsm_g_x;
+	int16_t lsm_g_y;
+	int16_t lsm_g_z;
+	uint16_t crc;
+}paket_2;
+
 
 int _write(int file, char *ptr, int len)
 {
@@ -45,6 +93,9 @@ int _write(int file, char *ptr, int len)
 	);
 	return len;
 }
+
+
+
 
 int app_main(){
 
@@ -70,6 +121,10 @@ int app_main(){
 	shift_reg_init(&nrf_sr);
 	shift_reg_write_8(&nrf_sr, 0xFF);
 
+	photorezistor_t phor_sr;
+	phor_sr.hadc = &hadc1;
+	phor_sr.resist = 2000;
+
 	// Настройка nrf
 	nrf24_spi_pins_sr_t rf_sr;
 	rf_sr.pos_CE = 0;
@@ -91,13 +146,13 @@ int app_main(){
 	nrf_protocol_config.auto_retransmit_count = 10;
 	nrf_protocol_config.auto_retransmit_delay = 1;
 	nrf_protocol_config.crc_size = NRF24_CRCSIZE_1BYTE;
-	nrf_protocol_config.en_ack_payload = false;
-	nrf_protocol_config.en_dyn_ack = false;
+	nrf_protocol_config.en_ack_payload = true;
+	nrf_protocol_config.en_dyn_ack = true;
 	nrf_protocol_config.en_dyn_payload_size = true;
 	nrf24_setup_protocol(&nrf, &nrf_protocol_config);
 
 
-	nrf24_pipe_set_tx_addr(&nrf,0x1234);
+	nrf24_pipe_set_tx_addr(&nrf,0x1234234598);
 	nrf24_mode_power_down(&nrf);
 	nrf24_mode_standby(&nrf);
 
@@ -133,10 +188,19 @@ int app_main(){
 
 	bme_init_default_sr(&bme, &bme_sr);
 
+	ds18b20_t ds_sr;
+	ds_sr.onewire_pin = GPIO_PIN_1;
+	ds_sr.onewire_port = GPIOA;
 
-	//  Вывод в консоль
 
 	while(1){
+	lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
+	lisread(&lis_ctx, &lis_temp, &lis);
+	bme_data = bme_read_data(&bme);
+	photor = photorezistor_get_lux(phor_sr);
+ ds18b20_start_conversion(&ds_sr);
+ ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+
 		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
 		nrf24_fifo_write(&nrf, buf, 32,false);
 if(tx_status == NRF24_FIFO_FULL){
@@ -149,11 +213,22 @@ if(rx_status == NRF24_FIFO_FULL){
 }
 nrf24_mode_tx(&nrf);
 
+	paket_2 p2_sr;
+	p2_sr.lis_x = lis[0];
+	p2_sr.lis_y = lis[1];
+	p2_sr.lis_z = lis[2];
+	p2_sr.lsm_a_x = lsm_accel[0];
+	p2_sr.ism_a_y = lsm_accel[1];
+	p2_sr.lsm_a_z = lsm_accel[2];
+	p2_sr.lsm_g_x = lsm_gyro[0];
+	p2_sr.lsm_g_y = lsm_gyro[1];
+	p2_sr.lsm_g_z = lsm_gyro[2];
+	p2_sr.n = 0;
+	p2_sr.time_pak = HAL_GetTick();
+	p2_sr.flag =0xAA;
 
 
-		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
-		lisread(&lis_ctx, &lis_temp, &lis);
-		bme_data = bme_read_data(&bme);
+
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
 		printf("Температура %f\n\n\n\n", lsm_temp);
