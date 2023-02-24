@@ -38,6 +38,7 @@ uint16_t ds_temp;
 uint8_t buf[32] = {1, 2, 3};
 nrf24_fifo_status_t  rx_status;
 nrf24_fifo_status_t  tx_status;
+int8_t sost;
 
 typedef struct paket_3{
 	uint32_t time_pak;
@@ -94,7 +95,16 @@ int _write(int file, char *ptr, int len)
 	return len;
 }
 
-
+uint16_t Crc16(uint8_t *buf, uint16_t len) {
+    uint16_t crc = 0xFFFF;
+    uint8_t i;
+    while (len--) {
+        crc ^= *buf++ << 8;
+        for (i = 0; i < 8; i++)
+            crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+    return crc;
+}
 
 
 int app_main(){
@@ -121,9 +131,6 @@ int app_main(){
 	shift_reg_init(&nrf_sr);
 	shift_reg_write_8(&nrf_sr, 0xFF);
 
-	photorezistor_t phor_sr;
-	phor_sr.hadc = &hadc1;
-	phor_sr.resist = 2000;
 
 	// Настройка nrf
 	nrf24_spi_pins_sr_t rf_sr;
@@ -157,11 +164,6 @@ int app_main(){
 	nrf24_mode_standby(&nrf);
 
 
-
-
-
-
-
 	// Настройка Lis
 	stmdev_ctx_t lis_ctx;
 	lis_spi_intf_sr lis_sr;
@@ -188,9 +190,15 @@ int app_main(){
 
 	bme_init_default_sr(&bme, &bme_sr);
 
+	// Настройка ds
 	ds18b20_t ds_sr;
 	ds_sr.onewire_pin = GPIO_PIN_1;
 	ds_sr.onewire_port = GPIOA;
+
+	// Настройка фоторезистора
+	photorezistor_t phor_sr;
+	phor_sr.hadc = &hadc1;
+	phor_sr.resist = 2000;
 
 
 	while(1){
@@ -213,6 +221,18 @@ if(rx_status == NRF24_FIFO_FULL){
 }
 nrf24_mode_tx(&nrf);
 
+    paket_1 p1_sr;
+	p1_sr.press = bme_data.pressure;
+	p1_sr.photor = photor;
+	p1_sr.temp_bme = bme_data.temperature;
+	p1_sr.flow =
+	p1_sr.u_bus =
+	p1_sr.time_pak = HAL_GetTick();
+	p1_sr.s = sost;
+	p1_sr.n = 0;
+	p1_sr.flag = 0xAA;
+	p1_sr.crc = Crc16;
+
 	paket_2 p2_sr;
 	p2_sr.lis_x = lis[0];
 	p2_sr.lis_y = lis[1];
@@ -225,7 +245,20 @@ nrf24_mode_tx(&nrf);
 	p2_sr.lsm_g_z = lsm_gyro[2];
 	p2_sr.n = 0;
 	p2_sr.time_pak = HAL_GetTick();
-	p2_sr.flag =0xAA;
+	p2_sr.flag =0xBB;
+	p2_sr.crc = Crc16;
+
+	paket_3 p3_sr;
+	p3_sr.n = 0;
+	p3_sr.flag = 0xCC;
+	p3_sr.time_pak = HAL_GetTick();
+	p3_sr.temp = ds_temp;
+	p3_sr.latitude =
+	p3_sr.longitude =
+	p3_sr.time_pak =
+    p3_sr.time_s =
+    p3_sr.time_us =
+    p3_sr.crc = Crc16;
 
 
 
