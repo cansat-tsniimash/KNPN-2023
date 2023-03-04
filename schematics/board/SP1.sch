@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.4.2">
+<eagle version="9.6.2">
 <drawing>
 <settings>
-<setting alwaysvectorfont="yes"/>
+<setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
 <grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
@@ -174,23 +174,12 @@
 <smd name="OUT-21" x="-7.5" y="6.75" dx="3.4" dy="1.4" layer="1" roundness="100"/>
 </package>
 <package name="SOLAR_1-2">
-<wire x1="10" y1="-9.75" x2="10" y2="9.75" width="0.2" layer="21"/>
-<wire x1="10" y1="-9.75" x2="-10" y2="-9.75" width="0.2" layer="21"/>
-<wire x1="-10" y1="-9.75" x2="-10" y2="9.75" width="0.2" layer="21"/>
-<wire x1="-10" y1="9.75" x2="10" y2="9.75" width="0.2" layer="21"/>
-<smd name="IN" x="0" y="-4" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
-<smd name="OUT" x="0" y="5" dx="8" dy="2" layer="16" roundness="100" rot="R270"/>
+<smd name="OUT" x="-7.493" y="2.968" dx="8" dy="2" layer="16" roundness="100" rot="R270"/>
 <wire x1="-8.5" y1="6.5" x2="-8.5" y2="-6.5" width="0.127" layer="21"/>
 <wire x1="-8.5" y1="-6.5" x2="8.5" y2="-6.5" width="0.127" layer="21"/>
 <wire x1="8.5" y1="-6.5" x2="8.5" y2="6.5" width="0.127" layer="21"/>
 <wire x1="8.5" y1="6.5" x2="-8.5" y2="6.5" width="0.127" layer="21"/>
-<smd name="IN-2" x="-7.5" y="-3" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
-<smd name="OUT-2" x="-7.5" y="6.75" dx="4.5" dy="2.5" layer="16" roundness="100"/>
-<wire x1="-8.5" y1="7.25" x2="-6.5" y2="7.25" width="0.127" layer="20"/>
-<wire x1="-6.5" y1="7.25" x2="-6.5" y2="6.25" width="0.127" layer="20" curve="-180"/>
-<wire x1="-6.5" y1="6.25" x2="-8.5" y2="6.25" width="0.127" layer="20"/>
-<wire x1="-8.5" y1="6.25" x2="-8.5" y2="7.25" width="0.127" layer="20" curve="-180"/>
-<smd name="OUT-21" x="-7.5" y="6.75" dx="3.4" dy="1.4" layer="1" roundness="100"/>
+<smd name="IN-2" x="-7.5" y="-1.73" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
 </package>
 </packages>
 <symbols>
@@ -217,8 +206,8 @@
 </device>
 <device name="_1" package="SOLAR_1-2">
 <connects>
-<connect gate="G$1" pin="IN" pad="IN IN-2"/>
-<connect gate="G$1" pin="OUT" pad="OUT OUT-2 OUT-21"/>
+<connect gate="G$1" pin="IN" pad="IN-2"/>
+<connect gate="G$1" pin="OUT" pad="OUT"/>
 </connects>
 <technologies>
 <technology name=""/>
@@ -10228,8 +10217,8 @@ Source: www.kingbright.com</description>
 </class>
 </classes>
 <parts>
-<part name="U$1" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
-<part name="U$2" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
+<part name="U$1" library="CanCubeSat" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
+<part name="U$2" library="CanCubeSat" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
 <part name="U$3" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
 <part name="U$4" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
 <part name="C1" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1210" package3d_urn="urn:adsk.eagle:package:23619/2" value="47u"/>
