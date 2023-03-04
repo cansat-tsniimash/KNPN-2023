@@ -39,7 +39,11 @@ uint8_t buf[32] = {1, 2, 3};
 nrf24_fifo_status_t  rx_status;
 nrf24_fifo_status_t  tx_status;
 int8_t sost;
-
+int stete;
+int pack;
+int tpak;
+int a;
+#pragma pack(push, 1)
 typedef struct paket_3{
 	uint32_t time_pak;
 	uint16_t n;
@@ -82,6 +86,7 @@ typedef struct paket_2{
 	int16_t lsm_g_z;
 	uint16_t crc;
 }paket_2;
+#pragma pack(pop)
 
 
 int _write(int file, char *ptr, int len)
@@ -144,15 +149,15 @@ int app_main(){
 	nrf24_rf_config_t nrf_config;
 	nrf24_protocol_config_t nrf_protocol_config;
 
-	nrf_config.data_rate = NRF24_DATARATE_1000_KBIT;
-	nrf_config.rf_channel = 36;
+	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
+	nrf_config.rf_channel = 111;
 	nrf_config.tx_power = NRF24_TXPOWER_MINUS_0_DBM;
 	nrf24_setup_rf(&nrf, &nrf_config);
 
 	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
-	nrf_protocol_config.auto_retransmit_count = 10;
-	nrf_protocol_config.auto_retransmit_delay = 1;
-	nrf_protocol_config.crc_size = NRF24_CRCSIZE_1BYTE;
+	nrf_protocol_config.auto_retransmit_count = 0;
+	nrf_protocol_config.auto_retransmit_delay = 0;
+	nrf_protocol_config.crc_size = NRF24_CRCSIZE_DISABLE;
 	nrf_protocol_config.en_ack_payload = true;
 	nrf_protocol_config.en_dyn_ack = true;
 	nrf_protocol_config.en_dyn_payload_size = true;
@@ -160,6 +165,24 @@ int app_main(){
 
 
 	nrf24_pipe_set_tx_addr(&nrf,0x1234234598);
+
+	//настройка пайпа(штука , чтобы принимать)
+	nrf24_pipe_config_t pipe_config;
+	for (int i = 1; i < 6; i++)
+	{
+		pipe_config.address = 0xacacacacac;
+		pipe_config.address = (pipe_config.address & ~((uint64_t)0xff << 32)) | ((uint64_t)(i + 7) << 32);
+		pipe_config.enable_auto_ack = false;
+		pipe_config.payload_size = -1;
+		nrf24_pipe_rx_start(&nrf24_api_config, i, &pipe_config);
+	}
+
+	pipe_config.address = 0xafafafaf01;
+	pipe_config.enable_auto_ack = false;
+	pipe_config.payload_size = -1;
+
+	nrf24_pipe_rx_start(&nrf24_api_config, 0, &pipe_config);
+
 	nrf24_mode_power_down(&nrf);
 	nrf24_mode_standby(&nrf);
 
@@ -200,66 +223,93 @@ int app_main(){
 	phor_sr.hadc = &hadc1;
 	phor_sr.resist = 2000;
 
+	int comp;
+
 
 	while(1){
-	lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
-	lisread(&lis_ctx, &lis_temp, &lis);
-	bme_data = bme_read_data(&bme);
-	photor = photorezistor_get_lux(phor_sr);
- ds18b20_start_conversion(&ds_sr);
- ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
+		lisread(&lis_ctx, &lis_temp, &lis);
+		bme_data = bme_read_data(&bme);
+		photor = photorezistor_get_lux(phor_sr);
+		ds18b20_start_conversion(&ds_sr);
+		ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
 
 		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
 		nrf24_fifo_write(&nrf, buf, 32,false);
-if(tx_status == NRF24_FIFO_FULL){
-	nrf24_fifo_flush_tx(&nrf);
+		if(tx_status == NRF24_FIFO_FULL){
+			nrf24_fifo_flush_tx(&nrf);
+		}
+		nrf24_mode_tx(&nrf);
 
-}
-if(rx_status == NRF24_FIFO_FULL){
-	nrf24_fifo_flush_rx(&nrf);
+		paket_1 p1_sr;
+		p1_sr.press = bme_data.pressure;
+		p1_sr.photor = photor * 1000;
+		p1_sr.temp_bme = bme_data.temperature * 1000;
+		p1_sr.flow = 4;
+		p1_sr.u_bus = 7;
+		p1_sr.time_pak = HAL_GetTick();
+		p1_sr.s = sost;
+		p1_sr.n = 0;
+		p1_sr.flag = 0xAA;
+		p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);;
 
-}
-nrf24_mode_tx(&nrf);
+		paket_2 p2_sr;
+		p2_sr.lis_x = lis[0] * 1000;
+		p2_sr.lis_y = lis[1] * 1000;
+		p2_sr.lis_z = lis[2] * 1000;
+		p2_sr.lsm_a_x = lsm_accel[0] * 1000;
+		p2_sr.ism_a_y = lsm_accel[1] * 1000;
+		p2_sr.lsm_a_z = lsm_accel[2] * 1000;
+		p2_sr.lsm_g_x = lsm_gyro[0] * 1000;
+		p2_sr.lsm_g_y = lsm_gyro[1] * 1000;
+		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
+		p2_sr.n = 0;
+		p2_sr.time_pak = HAL_GetTick();
+		p2_sr.flag =0xBB;
+		p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
 
-    paket_1 p1_sr;
-	p1_sr.press = bme_data.pressure;
-	p1_sr.photor = photor;
-	p1_sr.temp_bme = bme_data.temperature;
-	p1_sr.flow =
-	p1_sr.u_bus =
-	p1_sr.time_pak = HAL_GetTick();
-	p1_sr.s = sost;
-	p1_sr.n = 0;
-	p1_sr.flag = 0xAA;
-	p1_sr.crc = Crc16;
+		paket_3 p3_sr;
+		p3_sr.n = 0;
+		p3_sr.flag = 0xCC;
+		p3_sr.time_pak = HAL_GetTick();
+		p3_sr.temp = ds_temp;
+		p3_sr.latitude = 3;
+		p3_sr.longitude = 4;
+		p3_sr.time_pak = 8;
+		p3_sr.time_s = 7;
+		p3_sr.time_us = 4325;
+		p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
+		p3_sr.fix = 5;
 
-	paket_2 p2_sr;
-	p2_sr.lis_x = lis[0];
-	p2_sr.lis_y = lis[1];
-	p2_sr.lis_z = lis[2];
-	p2_sr.lsm_a_x = lsm_accel[0];
-	p2_sr.ism_a_y = lsm_accel[1];
-	p2_sr.lsm_a_z = lsm_accel[2];
-	p2_sr.lsm_g_x = lsm_gyro[0];
-	p2_sr.lsm_g_y = lsm_gyro[1];
-	p2_sr.lsm_g_z = lsm_gyro[2];
-	p2_sr.n = 0;
-	p2_sr.time_pak = HAL_GetTick();
-	p2_sr.flag =0xBB;
-	p2_sr.crc = Crc16;
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) == GPIO_PIN_RESET){
+			nrf24_irq_get(&nrf, &comp);
+			nrf24_irq_clear(&nrf, comp);
 
-	paket_3 p3_sr;
-	p3_sr.n = 0;
-	p3_sr.flag = 0xCC;
-	p3_sr.time_pak = HAL_GetTick();
-	p3_sr.temp = ds_temp;
-	p3_sr.latitude =
-	p3_sr.longitude =
-	p3_sr.time_pak =
-    p3_sr.time_s =
-    p3_sr.time_us =
-    p3_sr.crc = Crc16;
-
+		}
+		switch(stete)
+		cese pack_12:
+			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+			nrf24_fifo_write(&nrf, buf, 32,false);
+			tpak = HAL_GetTick();
+			nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
+			nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+				if(tx_status == NRF24_FIFO_FULL){
+					a++;
+				}
+				stete = w;
+		break;
+		cese pack_3:
+			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+			nrf24_fifo_write(&nrf, buf, 32,false);
+			tpak = HAL_GetTick();
+				if(a==4){
+					nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
+					a = 0;
+				}
+		break;
+		cese w:
+			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+			nrf24_fifo_write(&nrf, buf, 32,false);
 
 
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
@@ -269,6 +319,7 @@ nrf24_mode_tx(&nrf);
 		printf("Давление  %lf \n Температура %lf \n", bme_data.pressure, bme_data.temperature);
 
 	}
+
 
 	return 0;
 }
