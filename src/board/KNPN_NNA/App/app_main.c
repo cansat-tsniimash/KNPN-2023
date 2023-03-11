@@ -12,6 +12,7 @@
 #include "nRF24L01_PL/nrf24_lower_api_stm32.h"
 #include "Photorezistor/photorezistor.h"
 #include "1Wire_DS18B20/one_wire.h"
+#include "ina219/inc/ina219_helper.h"
 /*typedef struct {
 	SPI_HandleTypeDef *bus; // Хэндлер шины SPI
 	GPIO_TypeDef *latch_port; // Порт Latch-а, например, GPIOA, GPIOB, etc
@@ -25,7 +26,12 @@
 
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
+extern I2C_HandleTypeDef hi2c1;
 
+float power;
+float current;
+float bus_voltage;
+float shunt_voltage;
 float lsm_gyro[3];
 float lsm_temp;
 float lsm_accel[3];
@@ -33,13 +39,14 @@ float lis[3];
 float lis_temp;
 struct bme280_data bme_data;
 struct bme280_dev bme;
+struct ina219_t ina219;
 float photor;
 uint16_t ds_temp;
 uint8_t buf[32] = {1, 2, 3};
 nrf24_fifo_status_t  rx_status;
 nrf24_fifo_status_t  tx_status;
 int8_t sost;
-int stete;
+int state;
 int pack;
 int tpak;
 int a;
@@ -88,6 +95,12 @@ typedef struct paket_2{
 }paket_2;
 #pragma pack(pop)
 
+typedef struct INA219_DATA{
+	uint16_t power;
+	uint16_t current;
+	uint16_t voltage;
+	uint16_t shunt_voltage;
+}INA219_DATA;
 
 int _write(int file, char *ptr, int len)
 {
@@ -113,6 +126,9 @@ uint16_t Crc16(uint8_t *buf, uint16_t len) {
 
 
 int app_main(){
+
+	memset(&ina219,0,sizeof(ina219));
+
 
 	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
@@ -174,14 +190,14 @@ int app_main(){
 		pipe_config.address = (pipe_config.address & ~((uint64_t)0xff << 32)) | ((uint64_t)(i + 7) << 32);
 		pipe_config.enable_auto_ack = false;
 		pipe_config.payload_size = -1;
-		nrf24_pipe_rx_start(&nrf24_api_config, i, &pipe_config);
+		nrf24_pipe_rx_start(&nrf, i, &pipe_config);
 	}
 
 	pipe_config.address = 0xafafafaf01;
 	pipe_config.enable_auto_ack = false;
 	pipe_config.payload_size = -1;
 
-	nrf24_pipe_rx_start(&nrf24_api_config, 0, &pipe_config);
+	nrf24_pipe_rx_start(&nrf, 0, &pipe_config);
 
 	nrf24_mode_power_down(&nrf);
 	nrf24_mode_standby(&nrf);
@@ -223,6 +239,11 @@ int app_main(){
 	phor_sr.hadc = &hadc1;
 	phor_sr.resist = 2000;
 
+
+	ina219_primary_data_t primary_data;
+
+	ina219_secondary_data_t secondary_data;
+
 	int comp;
 
 
@@ -233,6 +254,21 @@ int app_main(){
 		photor = photorezistor_get_lux(phor_sr);
 		ds18b20_start_conversion(&ds_sr);
 		ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+		ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
+
+		INA219_DATA ina_sr;
+
+		ina219_read_primary(&ina219,&primary_data);
+		ina219_read_secondary(&ina219,&secondary_data);
+
+
+		power = ina219_power_convert(&ina219, secondary_data.power);
+
+		current = ina219_current_convert(&ina219, secondary_data.current);
+
+		bus_voltage = ina219_bus_voltage_convert(&ina219, primary_data.busv);
+
+		shunt_voltage = ina219_shunt_voltage_convert(&ina219, primary_data.shuntv);
 
 		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
 		nrf24_fifo_write(&nrf, buf, 32,false);
@@ -286,38 +322,41 @@ int app_main(){
 			nrf24_irq_clear(&nrf, comp);
 
 		}
-		switch(stete)
-		cese pack_12:
-			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-			nrf24_fifo_write(&nrf, buf, 32,false);
-			tpak = HAL_GetTick();
-			nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
-			nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+/*
+		switch(state) {
+			case pack_12:
+				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				nrf24_fifo_write(&nrf, buf, 32,false);
+				tpak = HAL_GetTick();
+				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
 				if(tx_status == NRF24_FIFO_FULL){
 					a++;
 				}
-				stete = w;
-		break;
-		cese pack_3:
-			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-			nrf24_fifo_write(&nrf, buf, 32,false);
-			tpak = HAL_GetTick();
+				state = w;
+			break;
+			case pack_3:
+				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				nrf24_fifo_write(&nrf, buf, 32,false);
+				tpak = HAL_GetTick();
 				if(a==4){
 					nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
 					a = 0;
 				}
-		break;
-		cese w:
-			Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-			nrf24_fifo_write(&nrf, buf, 32,false);
-
-
+			break;
+			case w:
+				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				nrf24_fifo_write(&nrf, buf, 32,false);
+			}
+*/
+/*
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
 		printf("Температура %f\n\n\n\n", lsm_temp);
 		printf("МАГНИТОМЕТР X %f\n МАГНИТОМЕТР Y %f\n МАГНИТОМЕТР Z %f\n", lis[0], lis[1], lis[2]);
 		printf("Давление  %lf \n Температура %lf \n", bme_data.pressure, bme_data.temperature);
-
+		*/
+		printf("power %f\n current %f\n bus_voltage %f\n shunt_voltage %f\n" , power, current,bus_voltage,shunt_voltage);
 	}
 
 
