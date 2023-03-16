@@ -127,8 +127,7 @@ uint16_t Crc16(uint8_t *buf, uint16_t len) {
 
 int app_main(){
 
-	memset(&ina219,0,sizeof(ina219));
-
+	//memset(&ina219,0,sizeof(ina219));
 
 	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
@@ -244,6 +243,8 @@ int app_main(){
 
 	ina219_secondary_data_t secondary_data;
 
+	ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
+
 	int comp;
 
 
@@ -254,9 +255,7 @@ int app_main(){
 		photor = photorezistor_get_lux(phor_sr);
 		ds18b20_start_conversion(&ds_sr);
 		ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
-		ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
 
-		INA219_DATA ina_sr;
 
 		ina219_read_primary(&ina219,&primary_data);
 		ina219_read_secondary(&ina219,&secondary_data);

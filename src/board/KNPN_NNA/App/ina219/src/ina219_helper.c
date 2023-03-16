@@ -3,7 +3,7 @@
 #define INA_CURRENT_LSB         ((ina219_float_t)(3.f/0x8000))
 #define INA_POWER_LSB           ((ina219_float_t)(20*INA_CURRENT_LSB))
 #define INA_VOLTAGE_BUS_LSB     0.004
-#define INA_VOLTAGE_SHUNT_LSB   0.01
+#define INA_VOLTAGE_SHUNT_LSB   0.00001
 
 int ina219_init_default(ina219_t * self, I2C_HandleTypeDef *hi2c, ina219_i2c_addr_t addr, uint32_t timeout) {
     int error = 0;
@@ -26,7 +26,7 @@ int ina219_init_default(ina219_t * self, I2C_HandleTypeDef *hi2c, ina219_i2c_add
     ina_cfg.shunt_res = INA219_ADC_RES_12_BIT_OVS_128;
     ina_cfg.mode = INA219_MODE_SHUNT_AND_BUS_CONT;
 
-    ina_cfg.shunt_r = 0.01f; // 10 миллиом
+    ina_cfg.shunt_r = 0.1f; // 100 миллиом
     ina_cfg.current_lsb = INA_CURRENT_LSB;
     error = ina219_set_cfg(self, &ina_cfg);
     printf("set_cfg error: %d\n", error);
