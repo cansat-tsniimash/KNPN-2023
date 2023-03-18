@@ -13,48 +13,17 @@
 #include "Photorezistor/photorezistor.h"
 #include "1Wire_DS18B20/one_wire.h"
 #include "ina219/inc/ina219_helper.h"
-/*typedef struct {
-	SPI_HandleTypeDef *bus; // Хэндлер шины SPI
-	GPIO_TypeDef *latch_port; // Порт Latch-а, например, GPIOA, GPIOB, etc
-	uint16_t latch_pin; // Маска Latch-а, например, GPIO_Pin_1, GPIO_Pin_2, etc
-	GPIO_TypeDef *oe_port; // Порт OE, например, GPIOA, GPIOB, etc
-	uint16_t oe_pin; // Маска OE, например, GPIO_Pin_1, GPIO_Pin_2, etc
-	uint16_t value; // Текущее состояние сдвигового регистра
-} shift_reg_t;
-	return o;
-}*/
 
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
 
-float power;
-float current;
-float bus_voltage;
-float shunt_voltage;
-float lsm_gyro[3];
-float lsm_temp;
-float lsm_accel[3];
-float lis[3];
-float lis_temp;
-struct bme280_data bme_data;
-struct bme280_dev bme;
-struct ina219_t ina219;
-float photor;
-uint16_t ds_temp;
-uint8_t buf[32] = {1, 2, 3};
-nrf24_fifo_status_t  rx_status;
-nrf24_fifo_status_t  tx_status;
-int8_t sost;
-int state;
-int pack;
-int tpak;
-int a;
+
 #pragma pack(push, 1)
 typedef struct paket_3{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t temp;
 	float latitude;
 	float longitude;
@@ -66,22 +35,22 @@ typedef struct paket_3{
 }paket_3;
 
 typedef struct paket_1{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t temp_bme;
 	uint32_t press;
-	int32_t flow;
-	int16_t u_bus;
-	int8_t s;
+	int32_t current;
+	int16_t bus_voltage;
+	int8_t state;
 	uint32_t photor;
 	uint16_t crc;
 }paket_1;
 
 typedef struct paket_2{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t lis_x;
 	int16_t lis_y;
 	int16_t lis_z;
@@ -93,6 +62,7 @@ typedef struct paket_2{
 	int16_t lsm_g_z;
 	uint16_t crc;
 }paket_2;
+
 #pragma pack(pop)
 
 typedef struct INA219_DATA{
@@ -124,8 +94,37 @@ uint16_t Crc16(uint8_t *buf, uint16_t len) {
     return crc;
 }
 
+typedef enum
+{
+	NRF_PACK_12,
+	NRF_PACK_3,
+	NRF_WAIT,
+}nrf_state_t;
+
 
 int app_main(){
+
+	float power;
+	float current;
+	float bus_voltage;
+	float shunt_voltage;
+	float lsm_gyro[3];
+	float lsm_temp;
+	float lsm_accel[3];
+	float lis[3];
+	float lis_temp;
+	struct bme280_data bme_data;
+	struct bme280_dev bme;
+	struct ina219_t ina219;
+	float photor;
+	uint16_t ds_temp;
+	nrf24_fifo_status_t  rx_status;
+	nrf24_fifo_status_t  tx_status;
+	nrf_state_t nrf_state = NRF_PACK_12;
+	int mission_state = 0;
+	int a = 0;
+	uint32_t nrf_start_time;
+	uint32_t ds_start_time;
 
 	//memset(&ina219,0,sizeof(ina219));
 
@@ -164,22 +163,24 @@ int app_main(){
 	nrf24_rf_config_t nrf_config;
 	nrf24_protocol_config_t nrf_protocol_config;
 
+	nrf24_mode_power_down(&nrf);
+
 	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
-	nrf_config.rf_channel = 111;
-	nrf_config.tx_power = NRF24_TXPOWER_MINUS_0_DBM;
+	nrf_config.rf_channel = 101;
+	nrf_config.tx_power = NRF24_TXPOWER_MINUS_18_DBM;
 	nrf24_setup_rf(&nrf, &nrf_config);
 
 	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
 	nrf_protocol_config.auto_retransmit_count = 0;
 	nrf_protocol_config.auto_retransmit_delay = 0;
-	nrf_protocol_config.crc_size = NRF24_CRCSIZE_DISABLE;
+	nrf_protocol_config.crc_size = NRF24_CRCSIZE_1BYTE;
 	nrf_protocol_config.en_ack_payload = true;
 	nrf_protocol_config.en_dyn_ack = true;
 	nrf_protocol_config.en_dyn_payload_size = true;
 	nrf24_setup_protocol(&nrf, &nrf_protocol_config);
 
 
-	nrf24_pipe_set_tx_addr(&nrf,0x1234234598);
+	nrf24_pipe_set_tx_addr(&nrf,0xacacacacac);
 
 	//настройка пайпа(штука , чтобы принимать)
 	nrf24_pipe_config_t pipe_config;
@@ -198,8 +199,8 @@ int app_main(){
 
 	nrf24_pipe_rx_start(&nrf, 0, &pipe_config);
 
-	nrf24_mode_power_down(&nrf);
 	nrf24_mode_standby(&nrf);
+	nrf24_mode_tx(&nrf);
 
 
 	// Настройка Lis
@@ -246,15 +247,30 @@ int app_main(){
 	ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
 
 	int comp;
+	ds18b20_start_conversion(&ds_sr);
+	ds_start_time = HAL_GetTick();
 
+	paket_1 p1_sr;
+	paket_2 p2_sr;
+	paket_3 p3_sr;
+
+	p1_sr.n = 0;
+	p2_sr.n = 0;
+	p3_sr.n = 0;
 
 	while(1){
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
 		photor = photorezistor_get_lux(phor_sr);
-		ds18b20_start_conversion(&ds_sr);
-		ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+
+
+		if (HAL_GetTick() - ds_start_time > 750)
+		{
+			ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+			ds18b20_start_conversion(&ds_sr);
+			ds_start_time = HAL_GetTick();
+		}
 
 
 		ina219_read_primary(&ina219,&primary_data);
@@ -269,26 +285,15 @@ int app_main(){
 
 		shunt_voltage = ina219_shunt_voltage_convert(&ina219, primary_data.shuntv);
 
-		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
-		nrf24_fifo_write(&nrf, buf, 32,false);
-		if(tx_status == NRF24_FIFO_FULL){
-			nrf24_fifo_flush_tx(&nrf);
-		}
-		nrf24_mode_tx(&nrf);
-
-		paket_1 p1_sr;
+		p1_sr.flag = 0xAA;
 		p1_sr.press = bme_data.pressure;
 		p1_sr.photor = photor * 1000;
 		p1_sr.temp_bme = bme_data.temperature * 1000;
-		p1_sr.flow = 4;
-		p1_sr.u_bus = 7;
-		p1_sr.time_pak = HAL_GetTick();
-		p1_sr.s = sost;
-		p1_sr.n = 0;
-		p1_sr.flag = 0xAA;
-		p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);;
+		p1_sr.current = current;
+		p1_sr.bus_voltage = bus_voltage;
+		p1_sr.state = mission_state;
 
-		paket_2 p2_sr;
+		p2_sr.flag =0xBB;
 		p2_sr.lis_x = lis[0] * 1000;
 		p2_sr.lis_y = lis[1] * 1000;
 		p2_sr.lis_z = lis[2] * 1000;
@@ -298,56 +303,76 @@ int app_main(){
 		p2_sr.lsm_g_x = lsm_gyro[0] * 1000;
 		p2_sr.lsm_g_y = lsm_gyro[1] * 1000;
 		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
-		p2_sr.n = 0;
-		p2_sr.time_pak = HAL_GetTick();
-		p2_sr.flag =0xBB;
-		p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
 
-		paket_3 p3_sr;
-		p3_sr.n = 0;
 		p3_sr.flag = 0xCC;
-		p3_sr.time_pak = HAL_GetTick();
 		p3_sr.temp = ds_temp;
 		p3_sr.latitude = 3;
 		p3_sr.longitude = 4;
 		p3_sr.time_pak = 8;
 		p3_sr.time_s = 7;
 		p3_sr.time_us = 4325;
-		p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
 		p3_sr.fix = 5;
 
-		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) == GPIO_PIN_RESET){
-			nrf24_irq_get(&nrf, &comp);
-			nrf24_irq_clear(&nrf, comp);
 
-		}
-/*
-		switch(state) {
-			case pack_12:
-				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-				nrf24_fifo_write(&nrf, buf, 32,false);
-				tpak = HAL_GetTick();
+		switch(nrf_state) {
+			case NRF_PACK_12:
+				p1_sr.n++;
+				p2_sr.n++;
+				p1_sr.time_pak = HAL_GetTick();
+				p2_sr.time_pak = HAL_GetTick();
+				p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);
+				p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
 				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
 				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
-				if(tx_status == NRF24_FIFO_FULL){
-					a++;
-				}
-				state = w;
+				a++;
+				nrf_state = NRF_WAIT;
+				nrf_start_time = HAL_GetTick();
 			break;
-			case pack_3:
-				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-				nrf24_fifo_write(&nrf, buf, 32,false);
-				tpak = HAL_GetTick();
-				if(a==4){
-					nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
-					a = 0;
-				}
+			case NRF_PACK_3:
+				p3_sr.n++;
+				p3_sr.time_pak = HAL_GetTick();
+				p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
+				a = 0;
+				nrf_state = NRF_WAIT;
+				nrf_start_time = HAL_GetTick();
 			break;
-			case w:
-				Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-				nrf24_fifo_write(&nrf, buf, 32,false);
+			case NRF_WAIT:
+				if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) == GPIO_PIN_RESET){
+					nrf24_irq_get(&nrf, &comp);
+					nrf24_irq_clear(&nrf, comp);
+					nrf24_fifo_status(&nrf,&rx_status,&tx_status);
+
+					if (tx_status == NRF24_FIFO_EMPTY)
+					{
+						if (a == 4)
+						{
+							nrf_state = NRF_PACK_3;
+						}
+						else
+						{
+							nrf_state = NRF_PACK_12;
+						}
+						break;
+					}
+				}
+				if (HAL_GetTick() - nrf_start_time > 100)
+				{
+					nrf24_fifo_flush_tx(&nrf);
+					if (a == 4)
+					{
+						nrf_state = NRF_PACK_3;
+					}
+					else
+					{
+						nrf_state = NRF_PACK_12;
+					}
+					break;
+
+				}
+				break;
 			}
-*/
+
 /*
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
