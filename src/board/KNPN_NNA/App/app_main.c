@@ -13,6 +13,7 @@
 #include "Photorezistor/photorezistor.h"
 #include "1Wire_DS18B20/one_wire.h"
 #include "ina219/inc/ina219_helper.h"
+#include "I2C_crutch/i2c-crutch.h"
 
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
@@ -40,7 +41,7 @@ typedef struct paket_1{
 	uint16_t n;
 	int16_t temp_bme;
 	uint32_t press;
-	int32_t current;
+	float current;
 	int16_t bus_voltage;
 	int8_t state;
 	uint32_t photor;
@@ -230,9 +231,9 @@ int app_main(){
 	bme_init_default_sr(&bme, &bme_sr);
 
 	// Настройка ds
-	ds18b20_t ds_sr;
-	ds_sr.onewire_pin = One_Wire_Pin;
-	ds_sr.onewire_port = One_Wire_GPIO_Port;
+	ds18b20_t ds_data;
+	ds_data.onewire_pin = One_Wire_Pin;
+	ds_data.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
 	photorezistor_t phor_sr;
@@ -247,7 +248,8 @@ int app_main(){
 	ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
 
 	int comp;
-	ds18b20_start_conversion(&ds_sr);
+
+	ds18b20_start_conversion(&ds_data);
 	ds_start_time = HAL_GetTick();
 
 	paket_1 p1_sr;
@@ -267,14 +269,24 @@ int app_main(){
 
 		if (HAL_GetTick() - ds_start_time > 750)
 		{
-			ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
-			ds18b20_start_conversion(&ds_sr);
+			ds18b20_read_raw_temperature(&ds_data, &ds_temp,0);
+			ds18b20_start_conversion(&ds_data);
 			ds_start_time = HAL_GetTick();
 		}
 
 
-		ina219_read_primary(&ina219,&primary_data);
-		ina219_read_secondary(&ina219,&secondary_data);
+		int res = ina219_read_primary(&ina219,&primary_data);
+		if (res == 2)
+		{
+			I2C_ClearBusyFlagErratum(&hi2c1, 20);
+			reset_i2c_1();
+		}
+		res = ina219_read_secondary(&ina219,&secondary_data);
+		if (res == 2)
+		{
+			I2C_ClearBusyFlagErratum(&hi2c1, 20);
+			reset_i2c_1();
+		}
 
 
 		power = ina219_power_convert(&ina219, secondary_data.power);
@@ -287,10 +299,10 @@ int app_main(){
 
 		p1_sr.flag = 0xAA;
 		p1_sr.press = bme_data.pressure;
-		p1_sr.photor = photor * 1000;
-		p1_sr.temp_bme = bme_data.temperature * 1000;
-		p1_sr.current = current *1000;
-		p1_sr.bus_voltage = bus_voltage;
+		p1_sr.photor = photor * 100;
+		p1_sr.temp_bme = bme_data.temperature * 100;
+		p1_sr.current = current * 1000;
+		p1_sr.bus_voltage = bus_voltage * 1000;
 		p1_sr.state = mission_state;
 
 		p2_sr.flag =0xBB;
@@ -385,3 +397,4 @@ int app_main(){
 
 	return 0;
 }
+
