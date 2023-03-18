@@ -231,8 +231,8 @@ int app_main(){
 
 	// Настройка ds
 	ds18b20_t ds_sr;
-	ds_sr.onewire_pin = GPIO_PIN_1;
-	ds_sr.onewire_port = GPIOA;
+	ds_sr.onewire_pin = One_Wire_Pin;
+	ds_sr.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
 	photorezistor_t phor_sr;
@@ -289,7 +289,7 @@ int app_main(){
 		p1_sr.press = bme_data.pressure;
 		p1_sr.photor = photor * 1000;
 		p1_sr.temp_bme = bme_data.temperature * 1000;
-		p1_sr.current = current;
+		p1_sr.current = current *1000;
 		p1_sr.bus_voltage = bus_voltage;
 		p1_sr.state = mission_state;
 
@@ -308,11 +308,10 @@ int app_main(){
 		p3_sr.temp = ds_temp;
 		p3_sr.latitude = 3;
 		p3_sr.longitude = 4;
-		p3_sr.time_pak = 8;
 		p3_sr.time_s = 7;
 		p3_sr.time_us = 4325;
 		p3_sr.fix = 5;
-
+		p3_sr.height = 1;
 
 		switch(nrf_state) {
 			case NRF_PACK_12:
