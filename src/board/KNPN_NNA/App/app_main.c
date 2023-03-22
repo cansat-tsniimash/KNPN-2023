@@ -12,38 +12,19 @@
 #include "nRF24L01_PL/nrf24_lower_api_stm32.h"
 #include "Photorezistor/photorezistor.h"
 #include "1Wire_DS18B20/one_wire.h"
-/*typedef struct {
-	SPI_HandleTypeDef *bus; // Хэндлер шины SPI
-	GPIO_TypeDef *latch_port; // Порт Latch-а, например, GPIOA, GPIOB, etc
-	uint16_t latch_pin; // Маска Latch-а, например, GPIO_Pin_1, GPIO_Pin_2, etc
-	GPIO_TypeDef *oe_port; // Порт OE, например, GPIOA, GPIOB, etc
-	uint16_t oe_pin; // Маска OE, например, GPIO_Pin_1, GPIO_Pin_2, etc
-	uint16_t value; // Текущее состояние сдвигового регистра
-} shift_reg_t;
-	return o;
-}*/
+#include "ina219/inc/ina219_helper.h"
+#include "I2C_crutch/i2c-crutch.h"
 
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
+extern I2C_HandleTypeDef hi2c1;
 
-float lsm_gyro[3];
-float lsm_temp;
-float lsm_accel[3];
-float lis[3];
-float lis_temp;
-struct bme280_data bme_data;
-struct bme280_dev bme;
-float photor;
-uint16_t ds_temp;
-uint8_t buf[32] = {1, 2, 3};
-nrf24_fifo_status_t  rx_status;
-nrf24_fifo_status_t  tx_status;
-int8_t sost;
 
+#pragma pack(push, 1)
 typedef struct paket_3{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t temp;
 	float latitude;
 	float longitude;
@@ -55,22 +36,22 @@ typedef struct paket_3{
 }paket_3;
 
 typedef struct paket_1{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t temp_bme;
 	uint32_t press;
-	int32_t flow;
-	int16_t u_bus;
-	int8_t s;
+	float current;
+	int16_t bus_voltage;
+	int8_t state;
 	uint32_t photor;
 	uint16_t crc;
 }paket_1;
 
 typedef struct paket_2{
+	uint8_t flag;
 	uint32_t time_pak;
 	uint16_t n;
-	uint8_t flag;
 	int16_t lis_x;
 	int16_t lis_y;
 	int16_t lis_z;
@@ -83,6 +64,14 @@ typedef struct paket_2{
 	uint16_t crc;
 }paket_2;
 
+#pragma pack(pop)
+
+typedef struct INA219_DATA{
+	uint16_t power;
+	uint16_t current;
+	uint16_t voltage;
+	uint16_t shunt_voltage;
+}INA219_DATA;
 
 int _write(int file, char *ptr, int len)
 {
@@ -106,8 +95,39 @@ uint16_t Crc16(uint8_t *buf, uint16_t len) {
     return crc;
 }
 
+typedef enum
+{
+	NRF_PACK_12,
+	NRF_PACK_3,
+	NRF_WAIT,
+}nrf_state_t;
+
 
 int app_main(){
+
+	float power;
+	float current;
+	float bus_voltage;
+	float shunt_voltage;
+	float lsm_gyro[3];
+	float lsm_temp;
+	float lsm_accel[3];
+	float lis[3];
+	float lis_temp;
+	struct bme280_data bme_data;
+	struct bme280_dev bme;
+	struct ina219_t ina219;
+	float photor;
+	uint16_t ds_temp;
+	nrf24_fifo_status_t  rx_status;
+	nrf24_fifo_status_t  tx_status;
+	nrf_state_t nrf_state = NRF_PACK_12;
+	int mission_state = 0;
+	int a = 0;
+	uint32_t nrf_start_time;
+	uint32_t ds_start_time;
+
+	//memset(&ina219,0,sizeof(ina219));
 
 	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
@@ -144,14 +164,16 @@ int app_main(){
 	nrf24_rf_config_t nrf_config;
 	nrf24_protocol_config_t nrf_protocol_config;
 
-	nrf_config.data_rate = NRF24_DATARATE_1000_KBIT;
-	nrf_config.rf_channel = 36;
-	nrf_config.tx_power = NRF24_TXPOWER_MINUS_0_DBM;
+	nrf24_mode_power_down(&nrf);
+
+	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
+	nrf_config.rf_channel = 101;
+	nrf_config.tx_power = NRF24_TXPOWER_MINUS_18_DBM;
 	nrf24_setup_rf(&nrf, &nrf_config);
 
 	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
-	nrf_protocol_config.auto_retransmit_count = 10;
-	nrf_protocol_config.auto_retransmit_delay = 1;
+	nrf_protocol_config.auto_retransmit_count = 0;
+	nrf_protocol_config.auto_retransmit_delay = 0;
 	nrf_protocol_config.crc_size = NRF24_CRCSIZE_1BYTE;
 	nrf_protocol_config.en_ack_payload = true;
 	nrf_protocol_config.en_dyn_ack = true;
@@ -159,9 +181,27 @@ int app_main(){
 	nrf24_setup_protocol(&nrf, &nrf_protocol_config);
 
 
-	nrf24_pipe_set_tx_addr(&nrf,0x1234234598);
-	nrf24_mode_power_down(&nrf);
+	nrf24_pipe_set_tx_addr(&nrf,0xacacacacac);
+
+	//настройка пайпа(штука , чтобы принимать)
+	nrf24_pipe_config_t pipe_config;
+	for (int i = 1; i < 6; i++)
+	{
+		pipe_config.address = 0xacacacacac;
+		pipe_config.address = (pipe_config.address & ~((uint64_t)0xff << 32)) | ((uint64_t)(i + 7) << 32);
+		pipe_config.enable_auto_ack = false;
+		pipe_config.payload_size = -1;
+		nrf24_pipe_rx_start(&nrf, i, &pipe_config);
+	}
+
+	pipe_config.address = 0xafafafaf01;
+	pipe_config.enable_auto_ack = false;
+	pipe_config.payload_size = -1;
+
+	nrf24_pipe_rx_start(&nrf, 0, &pipe_config);
+
 	nrf24_mode_standby(&nrf);
+	nrf24_mode_tx(&nrf);
 
 
 	// Настройка Lis
@@ -191,9 +231,9 @@ int app_main(){
 	bme_init_default_sr(&bme, &bme_sr);
 
 	// Настройка ds
-	ds18b20_t ds_sr;
-	ds_sr.onewire_pin = GPIO_PIN_1;
-	ds_sr.onewire_port = GPIOA;
+	ds18b20_t ds_data;
+	ds_data.onewire_pin = One_Wire_Pin;
+	ds_data.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
 	photorezistor_t phor_sr;
@@ -201,74 +241,160 @@ int app_main(){
 	phor_sr.resist = 2000;
 
 
-	while(1){
-	lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
-	lisread(&lis_ctx, &lis_temp, &lis);
-	bme_data = bme_read_data(&bme);
-	photor = photorezistor_get_lux(phor_sr);
- ds18b20_start_conversion(&ds_sr);
- ds18b20_read_raw_temperature(&ds_sr,&ds_temp,0);
+	ina219_primary_data_t primary_data;
 
-		nrf24_fifo_status(&nrf,&rx_status, &tx_status);
-		nrf24_fifo_write(&nrf, buf, 32,false);
-if(tx_status == NRF24_FIFO_FULL){
-	nrf24_fifo_flush_tx(&nrf);
+	ina219_secondary_data_t secondary_data;
 
-}
-if(rx_status == NRF24_FIFO_FULL){
-	nrf24_fifo_flush_rx(&nrf);
+	ina219_init_default(&ina219,&hi2c1,INA219_I2CADDR_A1_GND_A0_GND, HAL_MAX_DELAY);
 
-}
-nrf24_mode_tx(&nrf);
+	int comp;
 
-    paket_1 p1_sr;
-	p1_sr.press = bme_data.pressure;
-	p1_sr.photor = photor;
-	p1_sr.temp_bme = bme_data.temperature;
-	p1_sr.flow =
-	p1_sr.u_bus =
-	p1_sr.time_pak = HAL_GetTick();
-	p1_sr.s = sost;
-	p1_sr.n = 0;
-	p1_sr.flag = 0xAA;
-	p1_sr.crc = Crc16;
+	ds18b20_start_conversion(&ds_data);
+	ds_start_time = HAL_GetTick();
 
+	paket_1 p1_sr;
 	paket_2 p2_sr;
-	p2_sr.lis_x = lis[0];
-	p2_sr.lis_y = lis[1];
-	p2_sr.lis_z = lis[2];
-	p2_sr.lsm_a_x = lsm_accel[0];
-	p2_sr.ism_a_y = lsm_accel[1];
-	p2_sr.lsm_a_z = lsm_accel[2];
-	p2_sr.lsm_g_x = lsm_gyro[0];
-	p2_sr.lsm_g_y = lsm_gyro[1];
-	p2_sr.lsm_g_z = lsm_gyro[2];
-	p2_sr.n = 0;
-	p2_sr.time_pak = HAL_GetTick();
-	p2_sr.flag =0xBB;
-	p2_sr.crc = Crc16;
-
 	paket_3 p3_sr;
+
+	p1_sr.n = 0;
+	p2_sr.n = 0;
 	p3_sr.n = 0;
-	p3_sr.flag = 0xCC;
-	p3_sr.time_pak = HAL_GetTick();
-	p3_sr.temp = ds_temp;
-	p3_sr.latitude =
-	p3_sr.longitude =
-	p3_sr.time_pak =
-    p3_sr.time_s =
-    p3_sr.time_us =
-    p3_sr.crc = Crc16;
+
+	while(1){
+		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
+		lisread(&lis_ctx, &lis_temp, &lis);
+		bme_data = bme_read_data(&bme);
+		photor = photorezistor_get_lux(phor_sr);
 
 
+		if (HAL_GetTick() - ds_start_time > 750)
+		{
+			ds18b20_read_raw_temperature(&ds_data, &ds_temp,0);
+			ds18b20_start_conversion(&ds_data);
+			ds_start_time = HAL_GetTick();
+		}
 
+
+		int res = ina219_read_primary(&ina219,&primary_data);
+		if (res == 2)
+		{
+			I2C_ClearBusyFlagErratum(&hi2c1, 20);
+			reset_i2c_1();
+		}
+		res = ina219_read_secondary(&ina219,&secondary_data);
+		if (res == 2)
+		{
+			I2C_ClearBusyFlagErratum(&hi2c1, 20);
+			reset_i2c_1();
+		}
+
+
+		power = ina219_power_convert(&ina219, secondary_data.power);
+
+		current = ina219_current_convert(&ina219, secondary_data.current);
+
+		bus_voltage = ina219_bus_voltage_convert(&ina219, primary_data.busv);
+
+		shunt_voltage = ina219_shunt_voltage_convert(&ina219, primary_data.shuntv);
+
+		p1_sr.flag = 0xAA;
+		p1_sr.press = bme_data.pressure;
+		p1_sr.photor = photor * 100;
+		p1_sr.temp_bme = bme_data.temperature * 100;
+		p1_sr.current = current * 1000;
+		p1_sr.bus_voltage = bus_voltage * 1000;
+		p1_sr.state = mission_state;
+
+		p2_sr.flag =0xBB;
+		p2_sr.lis_x = lis[0] * 1000;
+		p2_sr.lis_y = lis[1] * 1000;
+		p2_sr.lis_z = lis[2] * 1000;
+		p2_sr.lsm_a_x = lsm_accel[0] * 1000;
+		p2_sr.ism_a_y = lsm_accel[1] * 1000;
+		p2_sr.lsm_a_z = lsm_accel[2] * 1000;
+		p2_sr.lsm_g_x = lsm_gyro[0] * 1000;
+		p2_sr.lsm_g_y = lsm_gyro[1] * 1000;
+		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
+
+		p3_sr.flag = 0xCC;
+		p3_sr.temp = ds_temp;
+		p3_sr.latitude = 3;
+		p3_sr.longitude = 4;
+		p3_sr.time_s = 7;
+		p3_sr.time_us = 4325;
+		p3_sr.fix = 5;
+		p3_sr.height = 1;
+
+		switch(nrf_state) {
+			case NRF_PACK_12:
+				p1_sr.n++;
+				p2_sr.n++;
+				p1_sr.time_pak = HAL_GetTick();
+				p2_sr.time_pak = HAL_GetTick();
+				p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);
+				p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+				a++;
+				nrf_state = NRF_WAIT;
+				nrf_start_time = HAL_GetTick();
+			break;
+			case NRF_PACK_3:
+				p3_sr.n++;
+				p3_sr.time_pak = HAL_GetTick();
+				p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
+				a = 0;
+				nrf_state = NRF_WAIT;
+				nrf_start_time = HAL_GetTick();
+			break;
+			case NRF_WAIT:
+				if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) == GPIO_PIN_RESET){
+					nrf24_irq_get(&nrf, &comp);
+					nrf24_irq_clear(&nrf, comp);
+					nrf24_fifo_status(&nrf,&rx_status,&tx_status);
+
+					if (tx_status == NRF24_FIFO_EMPTY)
+					{
+						if (a == 4)
+						{
+							nrf_state = NRF_PACK_3;
+						}
+						else
+						{
+							nrf_state = NRF_PACK_12;
+						}
+						break;
+					}
+				}
+				if (HAL_GetTick() - nrf_start_time > 100)
+				{
+					nrf24_fifo_flush_tx(&nrf);
+					if (a == 4)
+					{
+						nrf_state = NRF_PACK_3;
+					}
+					else
+					{
+						nrf_state = NRF_PACK_12;
+					}
+					break;
+
+				}
+				break;
+			}
+
+/*
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
 		printf("Температура %f\n\n\n\n", lsm_temp);
 		printf("МАГНИТОМЕТР X %f\n МАГНИТОМЕТР Y %f\n МАГНИТОМЕТР Z %f\n", lis[0], lis[1], lis[2]);
 		printf("Давление  %lf \n Температура %lf \n", bme_data.pressure, bme_data.temperature);
-
+		*/
+		printf("power %f\n current %f\n bus_voltage %f\n shunt_voltage %f\n" , power, current,bus_voltage,shunt_voltage);
 	}
+
 
 	return 0;
 }
+
