@@ -18,6 +18,7 @@
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
+extern TIM_HandleTypeDef htim3;
 
 
 #pragma pack(push, 1)
@@ -124,13 +125,16 @@ int app_main(){
 	nrf_state_t nrf_state = NRF_PACK_12;
 	int mission_state = 0;
 	int a = 0;
-	GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
-	GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
+	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
+	//GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
 	int IAB = 0;
 	bool storona_levo = 0;
 	bool storona_pravo = 0;
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
+	int32_t prevCounter = 0;
+
+
 
 	//memset(&ina219,0,sizeof(ina219));
 
@@ -268,20 +272,44 @@ int app_main(){
 
 
 	while(1){
+
+		/*
 		if(IA == 1 & IB == 0){
-	storona_levo = !storona_levo;
-	IAB ++;
-}
-if(IA == 0 & IB == 1){
-	storona_pravo = !storona_pravo;
-	IAB --;
-}
-if(IAB >= 64){
-	IAB = 0;
-	printf("ееее 360 ");
-	// и мы вроде наверное прошли 360 градусов
-	// 1 это 5,625 градусов (прям как у пива)
-}
+			storona_levo = !storona_levo;
+			IAB ++;
+		}
+		if(IA == 0 & IB == 1){
+			storona_pravo = !storona_pravo;
+			IAB --;
+		}
+		if(IAB >= 64){
+			IAB = 0;
+			printf("ееее 360 ");
+			// и мы вроде наверное прошли 360 градусов
+			// 1 это 5,625 градусов (прям как у пива)
+		}
+		*/
+
+
+	    // так можно проставить начальное значение счетчика:
+		// __HAL_TIM_SET_COUNTER(&htim1, 32760);
+
+		//включаем таймер
+		HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+
+		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
+		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
+		if(currCounter != prevCounter) {
+			char buff[16];
+
+			// выводим куда-то currCounter
+			// snprintf(buff, sizeof(buff), "%06d", currCounter);
+
+			prevCounter = currCounter;
+		}
+
+
+
 
 
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
