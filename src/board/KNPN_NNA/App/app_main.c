@@ -124,6 +124,11 @@ int app_main(){
 	nrf_state_t nrf_state = NRF_PACK_12;
 	int mission_state = 0;
 	int a = 0;
+	GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
+	GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
+	int IAB = 0;
+	bool storona_levo = 0;
+	bool storona_pravo = 0;
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
 
@@ -260,7 +265,25 @@ int app_main(){
 	p2_sr.n = 0;
 	p3_sr.n = 0;
 
+
+
 	while(1){
+		if(IA == 1 & IB == 0){
+	storona_levo = !storona_levo;
+	IAB ++;
+}
+if(IA == 0 & IB == 1){
+	storona_pravo = !storona_pravo;
+	IAB --;
+}
+if(IAB >= 64){
+	IAB = 0;
+	printf("ееее 360 ");
+	// и мы вроде наверное прошли 360 градусов
+	// 1 это 5,625 градусов (прям как у пива)
+}
+
+
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
@@ -273,6 +296,7 @@ int app_main(){
 			ds18b20_start_conversion(&ds_data);
 			ds_start_time = HAL_GetTick();
 		}
+
 
 
 		int res = ina219_read_primary(&ina219,&primary_data);
