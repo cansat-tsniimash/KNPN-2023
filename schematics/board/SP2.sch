@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="9.6.2">
+<eagle version="9.4.2">
 <drawing>
 <settings>
-<setting alwaysvectorfont="no"/>
+<setting alwaysvectorfont="yes"/>
 <setting verticaltext="up"/>
 </settings>
 <grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
@@ -158,65 +158,6 @@
 </layers>
 <schematic xreflabel="%F%N/%S.%C%R" xrefpart="/%S.%C%R">
 <libraries>
-<library name="CanCubeSat">
-<packages>
-<package name="SOLAR_0-2">
-<wire x1="-8.5" y1="6.5" x2="-8.5" y2="-6.5" width="0.127" layer="21"/>
-<wire x1="-8.5" y1="-6.5" x2="8.5" y2="-6.5" width="0.127" layer="21"/>
-<wire x1="8.5" y1="-6.5" x2="8.5" y2="6.5" width="0.127" layer="21"/>
-<wire x1="8.5" y1="6.5" x2="-8.5" y2="6.5" width="0.127" layer="21"/>
-<smd name="IN-2" x="-7.5" y="-1.73" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
-<smd name="OUT-2" x="-7.5" y="6.75" dx="4.5" dy="2.5" layer="16" roundness="100"/>
-<wire x1="-8.5" y1="7.25" x2="-6.5" y2="7.25" width="0.127" layer="20"/>
-<wire x1="-6.5" y1="7.25" x2="-6.5" y2="6.25" width="0.127" layer="20" curve="-180"/>
-<wire x1="-6.5" y1="6.25" x2="-8.5" y2="6.25" width="0.127" layer="20"/>
-<wire x1="-8.5" y1="6.25" x2="-8.5" y2="7.25" width="0.127" layer="20" curve="-180"/>
-<smd name="OUT-21" x="-7.5" y="6.75" dx="3.4" dy="1.4" layer="1" roundness="100"/>
-</package>
-<package name="SOLAR_1-2">
-<smd name="OUT" x="-7.493" y="2.968" dx="8" dy="2" layer="16" roundness="100" rot="R270"/>
-<wire x1="-8.5" y1="6.5" x2="-8.5" y2="-6.5" width="0.127" layer="21"/>
-<wire x1="-8.5" y1="-6.5" x2="8.5" y2="-6.5" width="0.127" layer="21"/>
-<wire x1="8.5" y1="-6.5" x2="8.5" y2="6.5" width="0.127" layer="21"/>
-<wire x1="8.5" y1="6.5" x2="-8.5" y2="6.5" width="0.127" layer="21"/>
-<smd name="IN-2" x="-7.5" y="-1.73" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
-</package>
-</packages>
-<symbols>
-<symbol name="SOLAR">
-<pin name="IN" x="-2.54" y="-5.08" length="middle" rot="R90"/>
-<pin name="OUT" x="2.54" y="-5.08" length="middle" rot="R90"/>
-<wire x1="-2.54" y1="0" x2="2.54" y2="0" width="0.254" layer="94"/>
-</symbol>
-</symbols>
-<devicesets>
-<deviceset name="SOLAR-2">
-<gates>
-<gate name="G$1" symbol="SOLAR" x="0" y="0"/>
-</gates>
-<devices>
-<device name="_0" package="SOLAR_0-2">
-<connects>
-<connect gate="G$1" pin="IN" pad="IN-2"/>
-<connect gate="G$1" pin="OUT" pad="OUT-2 OUT-21"/>
-</connects>
-<technologies>
-<technology name=""/>
-</technologies>
-</device>
-<device name="_1" package="SOLAR_1-2">
-<connects>
-<connect gate="G$1" pin="IN" pad="IN-2"/>
-<connect gate="G$1" pin="OUT" pad="OUT"/>
-</connects>
-<technologies>
-<technology name=""/>
-</technologies>
-</device>
-</devices>
-</deviceset>
-</devicesets>
-</library>
 <library name="rcl" urn="urn:adsk.eagle:library:334">
 <description>&lt;b&gt;Resistors, Capacitors, Inductors&lt;/b&gt;&lt;p&gt;
 Based on the previous libraries:
@@ -10207,6 +10148,190 @@ Source: www.kingbright.com</description>
 </deviceset>
 </devicesets>
 </library>
+<library name="KNPN-2023">
+<packages>
+<package name="SOLAR_1-2">
+<smd name="OUT" x="-7.5" y="2.7" dx="8" dy="2" layer="16" roundness="100" rot="R270"/>
+<wire x1="-8.5" y1="6.5" x2="-8.5" y2="-6.5" width="0.127" layer="21"/>
+<wire x1="-8.5" y1="-6.5" x2="8.5" y2="-6.5" width="0.127" layer="21"/>
+<wire x1="8.5" y1="-6.5" x2="8.5" y2="6.5" width="0.127" layer="21"/>
+<wire x1="8.5" y1="6.5" x2="-8.5" y2="6.5" width="0.127" layer="21"/>
+<smd name="IN-2" x="-7.5" y="-1.7" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
+</package>
+<package name="SOLAR_0-2">
+<wire x1="-8.5" y1="6.5" x2="-8.5" y2="-6.5" width="0.127" layer="21"/>
+<wire x1="-8.5" y1="-6.5" x2="8.5" y2="-6.5" width="0.127" layer="21"/>
+<wire x1="8.5" y1="-6.5" x2="8.5" y2="6.5" width="0.127" layer="21"/>
+<wire x1="8.5" y1="6.5" x2="-8.5" y2="6.5" width="0.127" layer="21"/>
+<smd name="IN-2" x="-7.5" y="-1.7" dx="10" dy="2" layer="1" roundness="100" rot="R90"/>
+<smd name="OUT-2" x="-7.5" y="6.75" dx="4.1" dy="2.5" layer="16" roundness="100"/>
+<wire x1="-8.3" y1="7.25" x2="-6.7" y2="7.25" width="0.127" layer="20"/>
+<wire x1="-6.7" y1="7.25" x2="-6.7" y2="6.25" width="0.127" layer="20" curve="-180"/>
+<wire x1="-6.7" y1="6.25" x2="-8.3" y2="6.25" width="0.127" layer="20"/>
+<wire x1="-8.3" y1="6.25" x2="-8.3" y2="7.25" width="0.127" layer="20" curve="-180"/>
+<smd name="OUT-21" x="-7.5" y="6.75" dx="3" dy="1.4" layer="1" roundness="100"/>
+</package>
+<package name="VT93N1">
+<wire x1="-2.5" y1="2" x2="2.5" y2="2" width="0.127" layer="21"/>
+<wire x1="2.5" y1="2" x2="2.5" y2="0" width="0.127" layer="21"/>
+<wire x1="2.5" y1="0" x2="-2.5" y2="0" width="0.127" layer="21"/>
+<wire x1="-2.5" y1="0" x2="-2.5" y2="2" width="0.127" layer="21"/>
+<smd name="P$1" x="-1.25" y="-1.8" dx="2.5" dy="0.8" layer="1" rot="R90"/>
+<smd name="P$2" x="1.25" y="-1.8" dx="2.5" dy="0.8" layer="1" rot="R90"/>
+<text x="-3" y="3" size="1.27" layer="25">&gt;NAME</text>
+</package>
+<package name="VT93N1-VERT">
+<text x="-3" y="3" size="1.27" layer="25">&gt;NAME</text>
+<pad name="P$1" x="-1.25" y="0" drill="0.8" shape="octagon"/>
+<pad name="P$2" x="1.25" y="0" drill="0.8" shape="octagon"/>
+<wire x1="-1.08971875" y1="-2.25" x2="1.08971875" y2="-2.25" width="0.1" layer="21"/>
+<wire x1="1.08971875" y1="2.25" x2="-1.08971875" y2="2.25" width="0.1" layer="21"/>
+<wire x1="1.08971875" y1="-2.25" x2="1.08971875" y2="2.25" width="0.1" layer="21" curve="128.316381"/>
+<wire x1="-1.08971875" y1="2.25" x2="-1.08971875" y2="-2.25" width="0.1" layer="21" curve="128.316381"/>
+</package>
+<package name="VIAS-CONNECT">
+<text x="-3" y="1" size="1.27" layer="27">&gt;VALUE</text>
+<smd name="1" x="-0.5" y="0" dx="0.8" dy="0.8" layer="1"/>
+<smd name="2" x="0.5" y="0" dx="0.8" dy="0.8" layer="1"/>
+<wire x1="-1.1" y1="0.6" x2="-0.7" y2="0.6" width="0.127" layer="21"/>
+<wire x1="-0.7" y1="0.6" x2="0.7" y2="0.6" width="0.127" layer="21"/>
+<wire x1="0.7" y1="0.6" x2="1.1" y2="0.6" width="0.127" layer="21"/>
+<wire x1="1.1" y1="0.6" x2="1.1" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="1.1" y1="-0.6" x2="0.7" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="0.7" y1="-0.6" x2="-0.7" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="-0.7" y1="-0.6" x2="-1.1" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="-1.1" y1="-0.6" x2="-1.1" y2="0.6" width="0.127" layer="21"/>
+<wire x1="-0.7" y1="0.6" x2="0.7" y2="0.6" width="0.127" layer="21" curve="-98.797411"/>
+<wire x1="0.7" y1="-0.6" x2="-0.7" y2="-0.6" width="0.127" layer="21" curve="-98.797411"/>
+</package>
+<package name="SOLDERING-PAD-4A">
+<smd name="P$1" x="1.1" y="0" dx="1.4" dy="2" layer="1" rot="R90"/>
+<smd name="P$2" x="-1.1" y="0" dx="1.4" dy="2" layer="1" rot="R270"/>
+<wire x1="-2.3" y1="0.9" x2="2.3" y2="0.9" width="0.1" layer="21"/>
+<wire x1="2.3" y1="0.9" x2="2.3" y2="-0.9" width="0.1" layer="21"/>
+<wire x1="2.3" y1="-0.9" x2="-2.3" y2="-0.9" width="0.1" layer="21"/>
+<wire x1="-2.3" y1="-0.9" x2="-2.3" y2="0.9" width="0.1" layer="21"/>
+<text x="0" y="1.97" size="1" layer="25" align="bottom-center">&gt;VALUE</text>
+<wire x1="-1.27" y1="0.943" x2="1.27" y2="0.943" width="0.127" layer="21" curve="-90"/>
+<wire x1="1.27" y1="-0.943" x2="-1.27" y2="-0.943" width="0.127" layer="21" curve="-90"/>
+</package>
+</packages>
+<symbols>
+<symbol name="SOLAR">
+<pin name="IN" x="-2.54" y="-5.08" length="middle" rot="R90"/>
+<pin name="OUT" x="2.54" y="-5.08" length="middle" rot="R90"/>
+<wire x1="-2.54" y1="0" x2="2.54" y2="0" width="0.254" layer="94"/>
+</symbol>
+<symbol name="PHOTOCELL">
+<wire x1="-3.048" y1="2.413" x2="-1.651" y2="1.016" width="0.1524" layer="94"/>
+<wire x1="-3.175" y1="1.27" x2="-1.778" y2="-0.127" width="0.1524" layer="94"/>
+<wire x1="0" y1="-2.54" x2="-1.016" y2="-1.905" width="0.254" layer="94"/>
+<wire x1="1.016" y1="-1.143" x2="-1.016" y2="-0.381" width="0.254" layer="94"/>
+<wire x1="-1.016" y1="-0.381" x2="1.016" y2="0.381" width="0.254" layer="94"/>
+<wire x1="1.016" y1="0.381" x2="-1.016" y2="1.143" width="0.254" layer="94"/>
+<wire x1="-1.016" y1="1.143" x2="1.016" y2="1.905" width="0.254" layer="94"/>
+<wire x1="0" y1="2.54" x2="1.016" y2="1.905" width="0.254" layer="94"/>
+<wire x1="-1.016" y1="-1.905" x2="1.016" y2="-1.143" width="0.254" layer="94"/>
+<text x="2.54" y="0" size="1.778" layer="95">&gt;NAME</text>
+<text x="2.54" y="-2.54" size="1.778" layer="96">&gt;VALUE</text>
+<pin name="1" x="0" y="5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R270"/>
+<pin name="2" x="0" y="-5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R90"/>
+<polygon width="0.1524" layer="94">
+<vertex x="-1.778" y="-0.127"/>
+<vertex x="-2.667" y="0.254"/>
+<vertex x="-2.159" y="0.762"/>
+</polygon>
+<polygon width="0.1524" layer="94">
+<vertex x="-1.651" y="1.016"/>
+<vertex x="-2.54" y="1.397"/>
+<vertex x="-2.032" y="1.905"/>
+</polygon>
+</symbol>
+<symbol name="VIAS-CONNECT">
+<text x="-3.81" y="3.175" size="1.778" layer="95">&gt;NAME</text>
+<pin name="1" x="-2.54" y="0" visible="pad" length="short" direction="pas" function="dot"/>
+<pin name="2" x="2.54" y="0" visible="pad" length="short" direction="pas" function="dot" rot="R180"/>
+<text x="-3.81" y="-4.445" size="1.778" layer="96">&gt;VALUE</text>
+</symbol>
+</symbols>
+<devicesets>
+<deviceset name="SOLAR-2">
+<gates>
+<gate name="G$1" symbol="SOLAR" x="0" y="0"/>
+</gates>
+<devices>
+<device name="_0" package="SOLAR_0-2">
+<connects>
+<connect gate="G$1" pin="IN" pad="IN-2"/>
+<connect gate="G$1" pin="OUT" pad="OUT-2 OUT-21"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="_1" package="SOLAR_1-2">
+<connects>
+<connect gate="G$1" pin="IN" pad="IN-2"/>
+<connect gate="G$1" pin="OUT" pad="OUT"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="VT93N1">
+<gates>
+<gate name="G$1" symbol="PHOTOCELL" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="VT93N1">
+<connects>
+<connect gate="G$1" pin="1" pad="P$1"/>
+<connect gate="G$1" pin="2" pad="P$2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="VERT" package="VT93N1-VERT">
+<connects>
+<connect gate="G$1" pin="1" pad="P$1"/>
+<connect gate="G$1" pin="2" pad="P$2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="VIAS-CONNECT" uservalue="yes">
+<gates>
+<gate name="G$1" symbol="VIAS-CONNECT" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="VIAS-CONNECT">
+<connects>
+<connect gate="G$1" pin="1" pad="1"/>
+<connect gate="G$1" pin="2" pad="2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="W1.4MM" package="SOLDERING-PAD-4A">
+<connects>
+<connect gate="G$1" pin="1" pad="P$1"/>
+<connect gate="G$1" pin="2" pad="P$2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+</devicesets>
+</library>
 </libraries>
 <attributes>
 </attributes>
@@ -10217,10 +10342,10 @@ Source: www.kingbright.com</description>
 </class>
 </classes>
 <parts>
-<part name="U$1" library="CanCubeSat" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
-<part name="U$2" library="CanCubeSat" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
-<part name="U$3" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
-<part name="U$4" library="CanCubeSat" deviceset="SOLAR-2" device="_0"/>
+<part name="U$1" library="KNPN-2023" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
+<part name="U$2" library="KNPN-2023" deviceset="SOLAR-2" device="_1" value="SOLAR-2_1"/>
+<part name="U$3" library="KNPN-2023" deviceset="SOLAR-2" device="_0"/>
+<part name="U$4" library="KNPN-2023" deviceset="SOLAR-2" device="_0"/>
 <part name="C1" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="C-EU" device="C1210" package3d_urn="urn:adsk.eagle:package:23619/2" value="47u"/>
 <part name="R1" library="rcl" library_urn="urn:adsk.eagle:library:334" deviceset="R-US_" device="R0603" package3d_urn="urn:adsk.eagle:package:23555/3" value="2k7"/>
 <part name="D1" library="diode" library_urn="urn:adsk.eagle:library:210" deviceset="MBR0520LT" device="" package3d_urn="urn:adsk.eagle:package:43420/1"/>
@@ -10228,8 +10353,10 @@ Source: www.kingbright.com</description>
 <part name="D2" library="diode" library_urn="urn:adsk.eagle:library:210" deviceset="MBR0520LT" device="" package3d_urn="urn:adsk.eagle:package:43420/1"/>
 <part name="D3" library="diode" library_urn="urn:adsk.eagle:library:210" deviceset="MBR0520LT" device="" package3d_urn="urn:adsk.eagle:package:43420/1"/>
 <part name="D4" library="diode" library_urn="urn:adsk.eagle:library:210" deviceset="MBR0520LT" device="" package3d_urn="urn:adsk.eagle:package:43420/1"/>
-<part name="LED1" library="led" library_urn="urn:adsk.eagle:library:259" deviceset="LED" device="CHIP-LED0603" package3d_urn="urn:adsk.eagle:package:15819/3"/>
-<part name="JP2" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X2" device="" package3d_urn="urn:adsk.eagle:package:22435/2"/>
+<part name="PWR" library="led" library_urn="urn:adsk.eagle:library:259" deviceset="LED" device="CHIP-LED0603" package3d_urn="urn:adsk.eagle:package:15819/3"/>
+<part name="SP-OUT" library="pinhead" library_urn="urn:adsk.eagle:library:325" deviceset="PINHD-1X2" device="" package3d_urn="urn:adsk.eagle:package:22435/2"/>
+<part name="FOTO" library="KNPN-2023" deviceset="VT93N1" device="VERT"/>
+<part name="U$7" library="KNPN-2023" deviceset="VIAS-CONNECT" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -10268,13 +10395,21 @@ Source: www.kingbright.com</description>
 <attribute name="NAME" x="58.42" y="25.8826" size="1.778" layer="95"/>
 <attribute name="VALUE" x="58.42" y="23.0886" size="1.778" layer="96"/>
 </instance>
-<instance part="LED1" gate="G$1" x="45.72" y="10.16" smashed="yes" rot="R90">
+<instance part="PWR" gate="G$1" x="45.72" y="10.16" smashed="yes" rot="R90">
 <attribute name="NAME" x="50.292" y="13.716" size="1.778" layer="95" rot="R180"/>
 <attribute name="VALUE" x="50.292" y="15.875" size="1.778" layer="96" rot="R180"/>
 </instance>
-<instance part="JP2" gate="G$1" x="43.18" y="-27.94" smashed="yes" rot="R270">
+<instance part="SP-OUT" gate="G$1" x="43.18" y="-27.94" smashed="yes" rot="R270">
 <attribute name="NAME" x="48.895" y="-21.59" size="1.778" layer="95" rot="R270"/>
 <attribute name="VALUE" x="38.1" y="-21.59" size="1.778" layer="96" rot="R270"/>
+</instance>
+<instance part="FOTO" gate="G$1" x="0" y="7.62" smashed="yes" rot="R90">
+<attribute name="NAME" x="0" y="10.16" size="1.778" layer="95" rot="R90"/>
+<attribute name="VALUE" x="2.54" y="10.16" size="1.778" layer="96" rot="R90"/>
+</instance>
+<instance part="U$7" gate="G$1" x="45.72" y="-15.24" smashed="yes" rot="R180">
+<attribute name="NAME" x="49.53" y="-18.415" size="1.778" layer="95" rot="R180"/>
+<attribute name="VALUE" x="49.53" y="-10.795" size="1.778" layer="96" rot="R180"/>
 </instance>
 </instances>
 <busses>
@@ -10327,7 +10462,7 @@ Source: www.kingbright.com</description>
 <pinref part="D4" gate="G$1" pin="C"/>
 <wire x1="58.42" y1="33.02" x2="58.42" y2="25.4" width="0.1524" layer="91"/>
 <junction x="58.42" y="33.02"/>
-<pinref part="LED1" gate="G$1" pin="C"/>
+<pinref part="PWR" gate="G$1" pin="C"/>
 <wire x1="58.42" y1="25.4" x2="58.42" y2="10.16" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="10.16" x2="50.8" y2="10.16" width="0.1524" layer="91"/>
 <junction x="58.42" y="25.4"/>
@@ -10335,10 +10470,14 @@ Source: www.kingbright.com</description>
 <wire x1="58.42" y1="10.16" x2="58.42" y2="-5.08" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="-5.08" x2="40.64" y2="-5.08" width="0.1524" layer="91"/>
 <junction x="58.42" y="10.16"/>
-<wire x1="58.42" y1="-5.08" x2="58.42" y2="-25.4" width="0.1524" layer="91"/>
+<wire x1="58.42" y1="-5.08" x2="58.42" y2="-15.24" width="0.1524" layer="91"/>
 <junction x="58.42" y="-5.08"/>
-<pinref part="JP2" gate="G$1" pin="1"/>
+<pinref part="SP-OUT" gate="G$1" pin="1"/>
+<wire x1="58.42" y1="-15.24" x2="58.42" y2="-25.4" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="-25.4" x2="45.72" y2="-25.4" width="0.1524" layer="91"/>
+<pinref part="U$7" gate="G$1" pin="1"/>
+<wire x1="48.26" y1="-15.24" x2="58.42" y2="-15.24" width="0.1524" layer="91"/>
+<junction x="58.42" y="-15.24"/>
 </segment>
 </net>
 <net name="SP+" class="0">
@@ -10366,16 +10505,21 @@ Source: www.kingbright.com</description>
 <net name="N$4" class="0">
 <segment>
 <pinref part="R1" gate="G$1" pin="2"/>
-<pinref part="LED1" gate="G$1" pin="A"/>
+<pinref part="PWR" gate="G$1" pin="A"/>
 <wire x1="30.48" y1="10.16" x2="43.18" y2="10.16" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="SP-" class="0">
 <segment>
-<pinref part="JP2" gate="G$1" pin="2"/>
+<pinref part="SP-OUT" gate="G$1" pin="2"/>
 <pinref part="JP1" gate="G$1" pin="1"/>
-<wire x1="43.18" y1="-25.4" x2="27.94" y2="-25.4" width="0.1524" layer="91"/>
+<wire x1="43.18" y1="-25.4" x2="35.56" y2="-25.4" width="0.1524" layer="91"/>
 <label x="35.56" y="-25.4" size="1.778" layer="95"/>
+<pinref part="U$7" gate="G$1" pin="2"/>
+<wire x1="35.56" y1="-25.4" x2="27.94" y2="-25.4" width="0.1524" layer="91"/>
+<wire x1="43.18" y1="-15.24" x2="35.56" y2="-15.24" width="0.1524" layer="91"/>
+<wire x1="35.56" y1="-15.24" x2="35.56" y2="-25.4" width="0.1524" layer="91"/>
+<junction x="35.56" y="-25.4"/>
 </segment>
 </net>
 </nets>

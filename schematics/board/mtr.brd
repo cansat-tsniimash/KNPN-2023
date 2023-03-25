@@ -158,12 +158,12 @@
 </layers>
 <board>
 <plain>
-<wire x1="0" y1="0" x2="19" y2="0" width="0" layer="20"/>
-<hole x="12" y="6" drill="2.2"/>
-<wire x1="0" y1="13" x2="0" y2="0" width="0" layer="20"/>
-<wire x1="0" y1="13" x2="19" y2="13" width="0.1524" layer="20"/>
-<wire x1="19" y1="13" x2="19" y2="0" width="0.1524" layer="20"/>
-<circle x="12" y="6" radius="2" width="0.1" layer="21"/>
+<wire x1="0" y1="0" x2="25" y2="0" width="0.1" layer="20"/>
+<hole x="12.5" y="6.5" drill="2.2"/>
+<wire x1="0" y1="13" x2="0" y2="0" width="0.1" layer="20"/>
+<wire x1="0" y1="13" x2="25" y2="13" width="0.1" layer="20"/>
+<wire x1="25" y1="13" x2="25" y2="0" width="0.1" layer="20"/>
+<circle x="12.5" y="6.5" radius="2" width="0.1" layer="21"/>
 </plain>
 <libraries>
 <library name="rcl" urn="urn:adsk.eagle:library:334">
@@ -1555,10 +1555,10 @@ design rules under a new name.</description>
 <attribute name="SPICEPREFIX" value="R" x="7.969" y="4.477" size="1.778" layer="27" display="off"/>
 </element>
 <element name="U$21" library="CanCubeSat" package="SOT23-3" value="SI2302CDS" x="7.869" y="7.117" smashed="yes"/>
-<element name="JUMP" library="pinhead" library_urn="urn:adsk.eagle:library:325" package="1X05" package3d_urn="urn:adsk.eagle:package:22469/2" value="" x="17" y="6.5" smashed="yes" rot="R90">
-<attribute name="NAME" x="15.1712" y="0.3438" size="1" layer="25" ratio="15" rot="R90"/>
-<attribute name="POPULARITY" value="69" x="17" y="6.5" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="VALUE" x="20.175" y="1.42" size="1.27" layer="27" rot="R90"/>
+<element name="JUMP" library="pinhead" library_urn="urn:adsk.eagle:library:325" package="1X05" package3d_urn="urn:adsk.eagle:package:22469/2" value="" x="23" y="6.5" smashed="yes" rot="R90">
+<attribute name="NAME" x="21.1712" y="0.3438" size="1" layer="25" ratio="15" rot="R90"/>
+<attribute name="POPULARITY" value="69" x="23" y="6.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="VALUE" x="26.175" y="1.42" size="1.27" layer="27" rot="R90"/>
 </element>
 <element name="U$1" library="CanCubeSat" package="SOT23-3" value="SI2302CDS" x="3.8" y="8.1" smashed="yes"/>
 <element name="R11" library="rcl" library_urn="urn:adsk.eagle:library:334" package="R0603" package3d_urn="urn:adsk.eagle:package:23555/3" value="10k*2" x="3.7" y="5.5" smashed="yes">
@@ -1579,13 +1579,13 @@ design rules under a new name.</description>
 <attribute name="OC_NEWARK" value="57H4701" x="2.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULARITY" value="0" x="2.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
-<element name="MOT" library="con-molex" library_urn="urn:adsk.eagle:library:165" package="53047-02" package3d_urn="urn:adsk.eagle:package:8078511/1" value="53047-02" x="12.2" y="11.4" smashed="yes" rot="R180">
-<attribute name="MF" value="MOLEX" x="12.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="53047-0210" x="12.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="14.075" y="9.65" size="1" layer="25" ratio="15" rot="R180"/>
-<attribute name="OC_FARNELL" value="9733051" x="12.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="OC_NEWARK" value="57H4701" x="12.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="POPULARITY" value="0" x="12.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
+<element name="MOT" library="con-molex" library_urn="urn:adsk.eagle:library:165" package="53047-02" package3d_urn="urn:adsk.eagle:package:8078511/1" value="53047-02" x="18.2" y="11.4" smashed="yes" rot="R180">
+<attribute name="MF" value="MOLEX" x="18.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="53047-0210" x="18.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="20.075" y="9.65" size="1" layer="25" ratio="15" rot="R180"/>
+<attribute name="OC_FARNELL" value="9733051" x="18.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="OC_NEWARK" value="57H4701" x="18.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="POPULARITY" value="0" x="18.2" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="POWER" library="con-molex" library_urn="urn:adsk.eagle:library:165" package="53047-02" package3d_urn="urn:adsk.eagle:package:8078511/1" value="53047-02" x="7.3" y="11.4" smashed="yes" rot="R180">
 <attribute name="MF" value="MOLEX" x="7.3" y="11.4" size="1.778" layer="27" rot="R180" display="off"/>
@@ -1648,37 +1648,37 @@ design rules under a new name.</description>
 <signal name="MOTOR3+G">
 <contactref element="U$21" pad="3"/>
 <contactref element="JUMP" pad="5"/>
-<wire x1="13.517" y1="9.017" x2="8.769" y2="9.017" width="0.5" layer="1"/>
-<wire x1="7.869" y1="8.117" x2="8.769" y2="9.017" width="0.5" layer="1"/>
-<wire x1="16.08" y1="11.58" x2="17" y2="11.58" width="0.5" layer="1"/>
-<wire x1="13.517" y1="9.017" x2="16.08" y2="11.58" width="0.5" layer="1"/>
+<wire x1="19.817" y1="9.317" x2="9.069" y2="9.317" width="0.5" layer="1"/>
+<wire x1="7.869" y1="8.117" x2="9.069" y2="9.317" width="0.5" layer="1"/>
+<wire x1="22.08" y1="11.58" x2="23" y2="11.58" width="0.5" layer="1"/>
+<wire x1="19.817" y1="9.317" x2="22.08" y2="11.58" width="0.5" layer="1"/>
 </signal>
 <signal name="12V">
 <contactref element="R1" pad="2"/>
 <contactref element="JUMP" pad="3"/>
 <contactref element="POWER" pad="2"/>
-<wire x1="17" y1="6.5" x2="15" y2="6.5" width="0.5" layer="1"/>
-<wire x1="13.383" y1="8.117" x2="9.8" y2="8.117" width="0.5" layer="1"/>
-<wire x1="9.8" y1="8.117" x2="9.8" y2="5.1" width="0.5" layer="1"/>
-<wire x1="9.8" y1="5.1" x2="9.177" y2="4.477" width="0.5" layer="1"/>
+<wire x1="23" y1="6.5" x2="21" y2="6.5" width="0.5" layer="1"/>
+<wire x1="19.083" y1="8.417" x2="9.7" y2="8.417" width="0.5" layer="1"/>
+<wire x1="9.7" y1="8.417" x2="9.7" y2="5" width="0.5" layer="1"/>
+<wire x1="9.7" y1="5" x2="9.177" y2="4.477" width="0.5" layer="1"/>
 <wire x1="8.819" y1="4.477" x2="9.177" y2="4.477" width="0.5" layer="1"/>
-<wire x1="15" y1="6.5" x2="13.383" y2="8.117" width="0.5" layer="1"/>
-<wire x1="7.925" y1="10.95" x2="7.925" y2="9.992" width="0.5" layer="16"/>
-<wire x1="7.925" y1="9.992" x2="9.8" y2="8.117" width="0.5" layer="16"/>
-<via x="9.8" y="8.117" extent="1-16" drill="0.35"/>
+<wire x1="21" y1="6.5" x2="19.083" y2="8.417" width="0.5" layer="1"/>
+<wire x1="7.925" y1="10.95" x2="7.925" y2="10.192" width="0.5" layer="16"/>
+<wire x1="7.925" y1="10.192" x2="9.7" y2="8.417" width="0.5" layer="16"/>
+<via x="9.7" y="8.417" extent="1-16" drill="0.35"/>
 </signal>
 <signal name="MOTOR3+">
 <contactref element="JUMP" pad="4"/>
 <contactref element="MOT" pad="2"/>
-<wire x1="17" y1="9.04" x2="14.735" y2="9.04" width="0.5" layer="16"/>
-<wire x1="14.735" y1="9.04" x2="12.825" y2="10.95" width="0.5" layer="16"/>
+<wire x1="23" y1="9.04" x2="20.735" y2="9.04" width="0.5" layer="16"/>
+<wire x1="20.735" y1="9.04" x2="18.825" y2="10.95" width="0.5" layer="16"/>
 </signal>
 <signal name="MOTOR3-">
 <contactref element="JUMP" pad="2"/>
 <contactref element="MOT" pad="1"/>
-<wire x1="17" y1="3.96" x2="16.5" y2="3.96" width="0.5" layer="16"/>
-<wire x1="16.5" y1="3.96" x2="11.575" y2="8.885" width="0.5" layer="16"/>
-<wire x1="11.575" y1="8.885" x2="11.575" y2="10.95" width="0.5" layer="16"/>
+<wire x1="23" y1="3.96" x2="22.5" y2="3.96" width="0.5" layer="16"/>
+<wire x1="22.5" y1="3.96" x2="17.575" y2="8.885" width="0.5" layer="16"/>
+<wire x1="17.575" y1="8.885" x2="17.575" y2="10.95" width="0.5" layer="16"/>
 </signal>
 <signal name="N$17">
 <contactref element="U$1" pad="1"/>
@@ -1704,7 +1704,7 @@ design rules under a new name.</description>
 <via x="4.7" y="9.1" extent="1-16" drill="0.35"/>
 <wire x1="11.58" y1="1.42" x2="4.7" y2="8.3" width="0.5" layer="16"/>
 <wire x1="4.7" y1="9.1" x2="4.7" y2="8.3" width="0.5" layer="16"/>
-<wire x1="11.58" y1="1.42" x2="17" y2="1.42" width="0.5" layer="16"/>
+<wire x1="11.58" y1="1.42" x2="23" y2="1.42" width="0.5" layer="16"/>
 </signal>
 </signals>
 <mfgpreviewcolors>
