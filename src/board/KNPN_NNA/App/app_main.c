@@ -103,7 +103,44 @@ typedef enum
 	NRF_WAIT,
 }nrf_state_t;
 
+int32_t prevCounter = 0;
 
+void init() {
+    // ... пропущено ...
+
+    // так можно проставить начальное значение счетчика:
+    // __HAL_TIM_SET_COUNTER(&htim1, 32760);
+
+    // не забываем включить таймер!
+    HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+}
+
+void loop() {
+    int32_t currCounter = __HAL_TIM_GET_COUNTER(&htim3);
+    currCounter = 32767 - ((currCounter-1) & 0xFFFF) ;
+    if(currCounter > 32768) {
+        // Преобразуем значения счетчика из:
+        //  ... 32766, 32767, 0, 1, 2 ...
+        // в значения:
+        //  ... -2, -1, 0, 1, 2 ...
+        currCounter = currCounter - 32768;
+    }
+    if(currCounter != prevCounter) {
+        int32_t delta = currCounter-prevCounter;
+        prevCounter = currCounter;
+        // защита от дребезга контактов и переполнения счетчика
+        // (переполнение будет случаться очень редко)
+        if((delta > -10) && (delta < 10)) {
+            // здесь обрабатываем поворот энкодера на delta щелчков
+            // delta положительная или отрицательная в зависимости
+            // от направления вращения
+
+            // ...
+        }
+    }
+
+    HAL_Delay(100);
+}
 int app_main(){
 
 	float power;
@@ -127,12 +164,12 @@ int app_main(){
 	int a = 0;
 	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
 	//GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
-	int IAB = 0;
-	bool storona_levo = 0;
-	bool storona_pravo = 0;
+
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
-	int32_t prevCounter = 0;
+
+init();
+loop();
 
 
 
