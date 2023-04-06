@@ -14,7 +14,8 @@
 #include "1Wire_DS18B20/one_wire.h"
 #include "ina219/inc/ina219_helper.h"
 #include "I2C_crutch/i2c-crutch.h"
-
+#include "fatfs.h"
+#include "string.h"
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
@@ -57,7 +58,7 @@ typedef struct paket_2{
 	int16_t lis_y;
 	int16_t lis_z;
 	int16_t lsm_a_x;
-	int16_t ism_a_y;
+	int16_t lsm_a_y;
 	int16_t lsm_a_z;
 	int16_t lsm_g_x;
 	int16_t lsm_g_y;
@@ -141,9 +142,59 @@ void loop() {
 
     HAL_Delay(100);
 }
+FATFS fileSystem; // переменная типа FATFS
+
+
+uint16_t sd_parse_to_bytes_pac1(char *buffer, paket_1 *paket1) {
+    memset(buffer, 0, 300);
+    uint16_t num_written = snprintf(
+            buffer, 300,
+			"%d;%ld;%d;%d;%ld;%f;%d;%d;%ld;%d\n",
+			paket1->flag,paket1->time_pak,paket1->n,paket1->temp_bme,paket1->press,
+			paket1->current,paket1->bus_voltage,paket1->state,paket1->photor,paket1->crc);
+    return num_written;
+}
+uint16_t sd_parse_to_bytes_pac2(char *buffer, paket_2 *paket2) {
+    memset(buffer, 0, 300);
+    uint16_t num_written = snprintf(
+            buffer, 300,
+            "%d;%ld;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d\n",
+			paket2->flag,paket2->time_pak,paket2->n,paket2->lis_x,paket2->lis_y,
+			paket2->lis_z,paket2->lsm_a_x,paket2->lsm_a_y,paket2->lsm_a_z,paket2->lsm_g_x,
+			paket2->lsm_g_y,paket2->lsm_g_z,paket2->crc);
+    return num_written;
+}
+uint16_t sd_parse_to_bytes_pac3(char *buffer, paket_3 *paket3) {
+    memset(buffer, 0, 300);
+    uint16_t num_written = snprintf(
+            buffer, 300,
+            "%d;%ld;%d;%d;%f;%f;%d;%ld;%ld;%d;%d;\n",
+            paket3->flag,paket3->time_pak,paket3->n,paket3->temp,paket3->latitude,
+			paket3->longitude,paket3->height,paket3->time_s,paket3->time_us,paket3->fix,paket3->crc );
+    return num_written;
+}
 int app_main(){
 
+	FIL HenFile_1; // хендлер файла 1
+	FIL HenFile_2; // хендлер файла 2
+	FIL HenFile_3; // хендлер файла 3
+	FIL HenFile_1csv; // хендлер файла 1
+	FIL HenFile_2csv; // хендлер файла 2
+	FIL HenFile_3csv; // хендлер файла 3
+	//char Buffer[16] = "TestTestTestTest"; // данные для записи
+	//UINT Ksbytes; // количество символов, реально записанных внутрь файла
+	FRESULT res1; // результат выполнения функции
+	FRESULT res2; // результат выполнения функции
+	FRESULT res3; // результат выполнения функции
+	FRESULT res1csv; // результат выполнения функции
+	FRESULT res2csv; // результат выполнения функции
+	FRESULT res3csv; // результат выполнения функции
+	FRESULT resm; // результат выполнения функции
+
+
 	float power;
+	char str_buf[300];
+	uint16_t num_written;
 	float current;
 	float bus_voltage;
 	float shunt_voltage;
@@ -162,18 +213,18 @@ int app_main(){
 	nrf_state_t nrf_state = NRF_PACK_12;
 	int mission_state = 0;
 	int a = 0;
+	int n = 0;
+	uint Bytes;
 	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
 	//GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
 
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
 
-init();
-loop();
+	init();
+	loop();
 
 
-
-	//memset(&ina219,0,sizeof(ina219));
 
 	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
@@ -306,26 +357,41 @@ loop();
 	p2_sr.n = 0;
 	p3_sr.n = 0;
 
+	const char path1[] = "file1.bin"; // название файла
+	const char path2[] = "file2.bin"; // название файла
+	const char path3[] = "file3.bin"; // название файла
+	const char csv1[] = "file1.csv"; // название файла
+	const char csv2[] = "file2.csv"; // название файла
+	const char csv3[] = "file3.csv"; // название файла
+
+
+	extern Disk_drvTypeDef disk;
+	disk.is_initialized[0] = 0;
+	resm = f_mount(&fileSystem, SDPath, 1);
+
+	if(resm == FR_OK)
+	{
+		HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10, 1);
+
+		res1 = f_open(&HenFile_1, path1, FA_WRITE | FA_OPEN_APPEND); // открытие файла, обязательно для работы с ним
+		res2 = f_open(&HenFile_2, path2, FA_WRITE | FA_OPEN_APPEND); // открытие файла, обязательно для работы с ним
+		res3 = f_open(&HenFile_3, path3, FA_WRITE | FA_OPEN_APPEND); // открытие файла, обязательно для работы с ним
+
+
+		res1csv = f_open(&HenFile_1csv, csv1, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+		res2csv = f_open(&HenFile_2csv, csv2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+		res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+
+		res1csv = f_puts("flag;time_pak;n;trmp_bme;press;current;bus_voltage;state;photor;crc\n", &HenFile_1csv);
+		res2csv = f_puts("flag;time_pak;n;lis_x;lis_y;lis_z;lsm_a_x;lsm_a_y;lsm_a_z;lsm_g_x;lsm_g_y;lsm_g_z;crc\n",&HenFile_2csv );
+		res3csv = f_puts("flag;time_pak;n;temp;platitude;longitude;height;time_s;time_us;fix;crc\n" , &HenFile_3csv );
+
+	}
+
 
 
 	while(1){
 
-		/*
-		if(IA == 1 & IB == 0){
-			storona_levo = !storona_levo;
-			IAB ++;
-		}
-		if(IA == 0 & IB == 1){
-			storona_pravo = !storona_pravo;
-			IAB --;
-		}
-		if(IAB >= 64){
-			IAB = 0;
-			printf("ееее 360 ");
-			// и мы вроде наверное прошли 360 градусов
-			// 1 это 5,625 градусов (прям как у пива)
-		}
-		*/
 
 
 	    // так можно проставить начальное значение счетчика:
@@ -337,14 +403,13 @@ loop();
 		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
 		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
 		if(currCounter != prevCounter) {
-			char buff[16];
+			//char buff[16];
 
 			// выводим куда-то currCounter
 			// snprintf(buff, sizeof(buff), "%06d", currCounter);
 
 			prevCounter = currCounter;
 		}
-
 
 
 
@@ -399,7 +464,7 @@ loop();
 		p2_sr.lis_y = lis[1] * 1000;
 		p2_sr.lis_z = lis[2] * 1000;
 		p2_sr.lsm_a_x = lsm_accel[0] * 1000;
-		p2_sr.ism_a_y = lsm_accel[1] * 1000;
+		p2_sr.lsm_a_y = lsm_accel[1] * 1000;
 		p2_sr.lsm_a_z = lsm_accel[2] * 1000;
 		p2_sr.lsm_g_x = lsm_gyro[0] * 1000;
 		p2_sr.lsm_g_y = lsm_gyro[1] * 1000;
@@ -414,6 +479,56 @@ loop();
 		p3_sr.fix = 5;
 		p3_sr.height = 1;
 
+
+		if (resm == FR_OK){
+			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10, 1);
+			if(res1 != FR_OK){
+				res1 = f_close(&HenFile_1); // закрытие файла
+				res1 = f_open(&HenFile_1, path1, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+
+			}
+			if(res2 != FR_OK){
+				res2 = f_close(&HenFile_2); // закрытие файла
+				res2 = f_open(&HenFile_2, path2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			}
+			if(res3 != FR_OK){
+				res3 = f_close(&HenFile_3); // закрытие файла
+				res3 = f_open(&HenFile_3, path3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			}
+			if(res1csv != FR_OK){
+				res1csv = f_close(&HenFile_1csv); // закрытие файла
+				res1csv = f_open(&HenFile_1csv, csv1, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			}
+			if(res2csv != FR_OK){
+				res2csv = f_close(&HenFile_2csv); // закрытие файла
+				res2csv = f_open(&HenFile_2csv, csv2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			}
+			if(res3csv != FR_OK){
+				res3csv = f_close(&HenFile_3csv); // закрытие файла
+				res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			}
+		}
+
+		if (resm != FR_OK || res3 != FR_OK || res2 != FR_OK || res1 != FR_OK || res3csv != FR_OK || res2csv != FR_OK || res1csv != FR_OK)
+
+		{
+			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10, 0);
+			f_mount(0, 0, 1);
+
+			extern Disk_drvTypeDef disk;
+			disk.is_initialized[0] = 0;
+			f_mount(&fileSystem, SDPath, 1);
+			res1 = f_open(&HenFile_1, path1, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			res2 = f_open(&HenFile_2, path2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			res3 = f_open(&HenFile_3, path3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			res1csv = f_open(&HenFile_1csv, csv1, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			res2csv = f_open(&HenFile_2csv, csv2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+			res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
+		}
+
+
+
+
 		switch(nrf_state) {
 			case NRF_PACK_12:
 				p1_sr.n++;
@@ -422,20 +537,52 @@ loop();
 				p2_sr.time_pak = HAL_GetTick();
 				p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);
 				p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
-				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr),false);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr ),false);
 				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
 				a++;
 				nrf_state = NRF_WAIT;
 				nrf_start_time = HAL_GetTick();
+
+				if (resm == FR_OK){
+					res1 = f_write(&HenFile_1,(uint8_t *)&p1_sr,sizeof(p1_sr), &Bytes); // отправка на запись в файл
+					res1 = f_sync(&HenFile_1); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+
+
+					num_written = sd_parse_to_bytes_pac1(str_buf, &p1_sr);
+
+					res1csv = f_write(&HenFile_1csv,str_buf,num_written, &Bytes); // отправка на запись в файл
+					res1csv = f_sync(&HenFile_1csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+
+					res2 = f_write(&HenFile_2,(uint8_t *)&p2_sr, sizeof(p2_sr), &Bytes); // отправка на запись в файл
+					res2 = f_sync(&HenFile_2); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+
+					num_written = sd_parse_to_bytes_pac2(str_buf, &p2_sr);
+
+					res2csv = f_write(&HenFile_2csv,str_buf,num_written, &Bytes); // отправка на запись в файл
+					res2csv = f_sync(&HenFile_2csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+				}
+
 			break;
 			case NRF_PACK_3:
 				p3_sr.n++;
 				p3_sr.time_pak = HAL_GetTick();
-				p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
 				nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
-				a = 0;
+				p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
+				n = 0;
 				nrf_state = NRF_WAIT;
 				nrf_start_time = HAL_GetTick();
+
+				if (resm == FR_OK){
+					res3 = f_write(&HenFile_3,(uint8_t *)&p3_sr,sizeof(p3_sr), &Bytes); // отправка на запись в файл
+					res3 = f_sync(&HenFile_3); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+
+					num_written = sd_parse_to_bytes_pac3(str_buf, &p3_sr);
+
+
+					res3csv = f_write(&HenFile_3csv, str_buf, num_written, &Bytes); // отправка на запись в файл
+					res3csv = f_sync(&HenFile_3csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+				}
+
 			break;
 			case NRF_WAIT:
 				if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) == GPIO_PIN_RESET){
@@ -473,14 +620,17 @@ loop();
 				break;
 			}
 
+
+
+
 /*
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
 		printf("Температура %f\n\n\n\n", lsm_temp);
 		printf("МАГНИТОМЕТР X %f\n МАГНИТОМЕТР Y %f\n МАГНИТОМЕТР Z %f\n", lis[0], lis[1], lis[2]);
 		printf("Давление  %lf \n Температура %lf \n", bme_data.pressure, bme_data.temperature);
-		*/
 		printf("power %f\n current %f\n bus_voltage %f\n shunt_voltage %f\n" , power, current,bus_voltage,shunt_voltage);
+		*/
 	}
 
 
