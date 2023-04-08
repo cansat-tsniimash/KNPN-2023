@@ -104,6 +104,17 @@ typedef enum
 	NRF_WAIT,
 }nrf_state_t;
 
+typedef enum
+{
+	STATE_BEFORE_LAUNCH = 0,
+	STATE_IN_ROCKET = 0,
+	STATE_PARACHUTE_DESENT = 0,
+	STATE_DESENT = 0,
+	STATE_LANDING = 0,
+	STATE_SUN_SEARCH = 0,
+	STATE_ENERGY = 0,
+}state_t;
+
 int32_t prevCounter = 0;
 
 void init() {
@@ -215,6 +226,11 @@ int app_main(){
 	int a = 0;
 	int n = 0;
 	uint Bytes;
+	state_t state;
+	state = STATE_BEFORE_LAUNCH;
+	int state_lux = 0;
+
+	uint32_t tick;
 	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
 	//GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
 
@@ -527,10 +543,11 @@ int app_main(){
 		}
 
 
-
+		tick = HAL_GetTick();
 
 		switch(nrf_state) {
 			case NRF_PACK_12:
+				tick = HAL_GetTick()-tick;
 				p1_sr.n++;
 				p2_sr.n++;
 				p1_sr.time_pak = HAL_GetTick();
@@ -564,11 +581,12 @@ int app_main(){
 
 			break;
 			case NRF_PACK_3:
+				tick = HAL_GetTick()-tick;
 				p3_sr.n++;
 				p3_sr.time_pak = HAL_GetTick();
-				nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
 				p3_sr.crc = Crc16((uint8_t *)&p3_sr, sizeof(p3_sr) - 2);
-				n = 0;
+				nrf24_fifo_write(&nrf, (uint8_t *)&p3_sr,sizeof(p3_sr),false);
+				a = 0;
 				nrf_state = NRF_WAIT;
 				nrf_start_time = HAL_GetTick();
 
@@ -620,6 +638,31 @@ int app_main(){
 				break;
 			}
 
+
+
+		/*
+		switch(state){
+				case STATE_BEFORE_LAUNCH:
+					uint8_t knopka = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_4);
+					if(knopka == 1){
+					state_lux = photor;
+						if
+
+
+					}
+
+
+
+
+
+
+
+
+
+
+
+
+			}
 
 
 
