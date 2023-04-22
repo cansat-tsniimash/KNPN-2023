@@ -75,6 +75,13 @@ typedef struct INA219_DATA{
 	uint16_t shunt_voltage;
 }INA219_DATA;
 
+typedef struct motor_intf_sr
+{
+		int sr_pin;
+		//Shift reg device
+		shift_reg_t *sr;
+}motor_intf_sr;
+
 int _write(int file, char *ptr, int len)
 {
 	extern UART_HandleTypeDef huart1;
@@ -107,15 +114,23 @@ typedef enum
 typedef enum
 {
 	STATE_BEFORE_LAUNCH = 0,
-	STATE_IN_ROCKET = 0,
-	STATE_PARACHUTE_DESENT = 0,
-	STATE_DESENT = 0,
-	STATE_LANDING = 0,
-	STATE_SUN_SEARCH = 0,
-	STATE_ENERGY = 0,
+	STATE_IN_ROCKET = 1,
+	STATE_PARACHUTE_DESENT = 2,
+	STATE_DESENT = 3,
+	STATE_LANDING = 4,
+	STATE_SUN_SEARCH = 5,
+	STATE_ENERGY = 6,
 }state_t;
 
 int32_t prevCounter = 0;
+
+shift_reg_t dop_sr;
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef * tim)
+{
+	shift_reg_write_bit_16(&dop_sr, 2, 0);
+}
+
 
 void init() {
     // ... пропущено ...
@@ -125,11 +140,20 @@ void init() {
 
     // не забываем включить таймер!
     HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+
+    //__HAL_TIM_SET_COUNTER(&htim3, 1000);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 16);
+    __HAL_TIM_ENABLE_IT(&htim3, TIM_IT_CC3);
+    //HAL_NVIC_EnableIRQ(TIM3_IRQn);
+    //HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+
 }
 
 void loop() {
     int32_t currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-    currCounter = 32767 - ((currCounter-1) & 0xFFFF) ;
+    printf("value = %d\n", currCounter);
+
+    //currCounter = 32767 - ((currCounter-1) & 0xFFFF) ;
     if(currCounter > 32768) {
         // Преобразуем значения счетчика из:
         //  ... 32766, 32767, 0, 1, 2 ...
@@ -184,6 +208,12 @@ uint16_t sd_parse_to_bytes_pac3(char *buffer, paket_3 *paket3) {
 			paket3->longitude,paket3->height,paket3->time_s,paket3->time_us,paket3->fix,paket3->crc );
     return num_written;
 }
+
+
+
+
+
+
 int app_main(){
 
 	FIL HenFile_1; // хендлер файла 1
@@ -217,8 +247,13 @@ int app_main(){
 	struct bme280_data bme_data;
 	struct bme280_dev bme;
 	struct ina219_t ina219;
+
 	float photor;
+
+	float height;
 	uint16_t ds_temp;
+	bool crc_ds = false;
+
 	nrf24_fifo_status_t  rx_status;
 	nrf24_fifo_status_t  tx_status;
 	nrf_state_t nrf_state = NRF_PACK_12;
@@ -226,9 +261,10 @@ int app_main(){
 	int a = 0;
 	int n = 0;
 	uint Bytes;
-	state_t state;
+	state_t state = STATE_BEFORE_LAUNCH;
 	state = STATE_BEFORE_LAUNCH;
 	int state_lux = 0;
+	int x;
 
 	uint32_t tick;
 	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
@@ -237,8 +273,6 @@ int app_main(){
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
 
-	init();
-	loop();
 
 
 
@@ -252,6 +286,18 @@ int app_main(){
 	imu_sr.bus = &hspi2;
 	shift_reg_init(&imu_sr);
 	shift_reg_write_16(&imu_sr, 0xFFFF);
+
+	// Настройка сдвигового регистра доп
+
+	dop_sr.latch_port = GPIOB;
+	dop_sr.latch_pin = GPIO_PIN_12;
+	dop_sr.oe_port = GPIOB;
+	dop_sr.oe_pin = GPIO_PIN_12;
+	dop_sr.value = 0;
+	dop_sr.bus = &hspi2;
+	shift_reg_init(&dop_sr);
+	shift_reg_write_16(&dop_sr, 0xFFFF);
+	init();
 
 	// Настройка сдвигового регистра NRF
 	shift_reg_t nrf_sr;
@@ -319,39 +365,39 @@ int app_main(){
 
 	// Настройка Lis
 	stmdev_ctx_t lis_ctx;
-	lis_spi_intf_sr lis_sr;
-	lis_sr.spi = &hspi2;
-	lis_sr.sr = &imu_sr;
-	lis_sr.sr_pin = 3;
+	lis_spi_intf_sr lis_cfg;
+	lis_cfg.spi = &hspi2;
+	lis_cfg.sr = &imu_sr;
+	lis_cfg.sr_pin = 3;
 
-	lisset_sr(&lis_ctx, &lis_sr);
+	lisset_sr(&lis_ctx, &lis_cfg);
 
 	// Настройка Lsm
 	stmdev_ctx_t stm_ctx;
-	lsm_spi_intf_sr lsm_sr;
-	lsm_sr.spi = &hspi2;
-	lsm_sr.sr = &imu_sr;
-	lsm_sr.sr_pin = 4;
+	lsm_spi_intf_sr lsm_cfg;
+	lsm_cfg.spi = &hspi2;
+	lsm_cfg.sr = &imu_sr;
+	lsm_cfg.sr_pin = 4;
 
-	lsmset_sr(&stm_ctx, &lsm_sr);
+	lsmset_sr(&stm_ctx, &lsm_cfg);
 
 	// Настройка bme
-	bme_spi_intf_sr bme_sr;
-	bme_sr.spi = &hspi2;
-	bme_sr.sr = &imu_sr;
-	bme_sr.sr_pin = 2;
+	bme_spi_intf_sr bme_cfg;
+	bme_cfg.spi = &hspi2;
+	bme_cfg.sr = &imu_sr;
+	bme_cfg.sr_pin = 2;
 
-	bme_init_default_sr(&bme, &bme_sr);
+	bme_init_default_sr(&bme, &bme_cfg);
 
 	// Настройка ds
-	ds18b20_t ds_data;
-	ds_data.onewire_pin = One_Wire_Pin;
-	ds_data.onewire_port = One_Wire_GPIO_Port;
+	ds18b20_t ds_cfg;
+	ds_cfg.onewire_pin = One_Wire_Pin;
+	ds_cfg.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
-	photorezistor_t phor_sr;
-	phor_sr.hadc = &hadc1;
-	phor_sr.resist = 2000;
+	photorezistor_t phor_cfg;
+	phor_cfg.hadc = &hadc1;
+	phor_cfg.resist = 2000;
 
 
 	ina219_primary_data_t primary_data;
@@ -362,7 +408,9 @@ int app_main(){
 
 	int comp;
 
-	ds18b20_start_conversion(&ds_data);
+	onewire_init(&ds_cfg);
+	ds18b20_set_config(&ds_cfg, 100, -100, DS18B20_RESOLUTION_12_BIT);
+	ds18b20_start_conversion(&ds_cfg);
 	ds_start_time = HAL_GetTick();
 
 	paket_1 p1_sr;
@@ -404,17 +452,67 @@ int app_main(){
 
 	}
 
+	shift_reg_write_bit_16(&dop_sr, 2, 1);
+
+	uint32_t perepar;
+	uint32_t zemlya;
+	uint32_t paneli;
+	uint32_t doukladki;
+
+	shift_reg_write_bit_16(&imu_sr, 12, 0);
+	shift_reg_write_bit_16(&imu_sr, 11, 0);
 
 
-	while(1){
+	photor = photorezistor_get_lux(phor_cfg);
+	float photor_state = photor;
+/*
+	int foto_sp_1 = 1;
+	int foto_sp_2 = 2;
+	int foto_sp_3 = 3;
+	int foto_sp_4 = 4;
+	int foto_sp_5 = 5;
+	int foto_sp_6 = 6;
+	int foto_sp_7 = 7;
+	int foto_sp_8 = 8;
 
+	float foto_1 = photorezistor_get_lux(phor_cfg);
+	float foto_2 = photorezistor_get_lux(phor_cfg);
+	float foto_3 = photorezistor_get_lux(phor_cfg);
+	float foto_4 = photorezistor_get_lux(phor_cfg);
+	float foto_5 = photorezistor_get_lux(phor_cfg);
+	float foto_6 = photorezistor_get_lux(phor_cfg);
+	float foto_7 = photorezistor_get_lux(phor_cfg);
+	float foto_8 = photorezistor_get_lux(phor_cfg);
+*/
+	while(1)
+	{
+		loop();
+
+
+		/*
+		shift_reg_write_bit_16(&dop_sr, 6, 1);
+		HAL_Delay(5000);
+		shift_reg_write_bit_16(&dop_sr, 6, 0);
+		HAL_Delay(1000);
+		shift_reg_write_bit_16(&dop_sr, 7, 1);
+		HAL_Delay(3000);
+		shift_reg_write_bit_16(&dop_sr, 7, 0);
+		HAL_Delay(1000);
+		shift_reg_write_bit_16(&dop_sr, 0, 1);
+		HAL_Delay(3000);
+		shift_reg_write_bit_16(&dop_sr, 0, 0);
+
+
+
+		shift_reg_write_bit_16(&dop_sr, 1, 1);
+		HAL_Delay(1000);
+		shift_reg_write_bit_16(&dop_sr, 1, 0);
+
+		*/
 
 
 	    // так можно проставить начальное значение счетчика:
 		// __HAL_TIM_SET_COUNTER(&htim1, 32760);
-
-		//включаем таймер
-		HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
 		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
 		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
@@ -433,14 +531,14 @@ int app_main(){
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
-		photor = photorezistor_get_lux(phor_sr);
-
+		photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
 		{
-			ds18b20_read_raw_temperature(&ds_data, &ds_temp,0);
-			ds18b20_start_conversion(&ds_data);
+			ds18b20_read_raw_temperature(&ds_cfg, &ds_temp, &crc_ds);
+			ds18b20_start_conversion(&ds_cfg);
 			ds_start_time = HAL_GetTick();
+			p3_sr.temp = ds_temp/16;
 		}
 
 
@@ -449,23 +547,16 @@ int app_main(){
 		if (res == 2)
 		{
 			I2C_ClearBusyFlagErratum(&hi2c1, 20);
-			reset_i2c_1();
 		}
 		res = ina219_read_secondary(&ina219,&secondary_data);
 		if (res == 2)
 		{
 			I2C_ClearBusyFlagErratum(&hi2c1, 20);
-			reset_i2c_1();
 		}
-
-
-		power = ina219_power_convert(&ina219, secondary_data.power);
 
 		current = ina219_current_convert(&ina219, secondary_data.current);
 
 		bus_voltage = ina219_bus_voltage_convert(&ina219, primary_data.busv);
-
-		shunt_voltage = ina219_shunt_voltage_convert(&ina219, primary_data.shuntv);
 
 		p1_sr.flag = 0xAA;
 		p1_sr.press = bme_data.pressure;
@@ -487,7 +578,6 @@ int app_main(){
 		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
 
 		p3_sr.flag = 0xCC;
-		p3_sr.temp = ds_temp;
 		p3_sr.latitude = 3;
 		p3_sr.longitude = 4;
 		p3_sr.time_s = 7;
@@ -525,6 +615,7 @@ int app_main(){
 			}
 		}
 
+
 		if (resm != FR_OK || res3 != FR_OK || res2 != FR_OK || res1 != FR_OK || res3csv != FR_OK || res2csv != FR_OK || res1csv != FR_OK)
 
 		{
@@ -542,8 +633,77 @@ int app_main(){
 			res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
 		}
 
+		int press_state = 0;
 
-		tick = HAL_GetTick();
+
+
+
+		switch(state){
+			case STATE_BEFORE_LAUNCH:
+			{
+				uint8_t knopka = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
+				if(knopka == 1){
+					press_state = bme_data.pressure;
+					shift_reg_write_bit_16(&imu_sr, 12, 0);
+					shift_reg_write_bit_16(&imu_sr, 11, 1);
+					doukladki = HAL_GetTick();
+					state = STATE_IN_ROCKET;
+				}
+			}
+			break;
+			case STATE_IN_ROCKET:
+			{
+
+				if((photor >= 0.80 * photor_state) && (HAL_GetTick() - doukladki >= 10000))
+				{
+					state = STATE_PARACHUTE_DESENT;
+					shift_reg_write_bit_16(&imu_sr, 11, 0);
+					shift_reg_write_bit_16(&imu_sr, 12, 1);
+				}
+			}
+			break;
+			case STATE_PARACHUTE_DESENT:
+			{
+				height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
+				if(height <= 6.3){
+					shift_reg_write_bit_16(&dop_sr, 6, 1);
+					state = STATE_DESENT;
+					perepar = HAL_GetTick();
+				}
+			}
+			break;
+			case STATE_DESENT:
+			{
+				if(HAL_GetTick() - perepar >= 3000)
+				{
+					shift_reg_write_bit_16(&dop_sr, 6, 0);
+					zemlya = HAL_GetTick();
+					if(HAL_GetTick() - zemlya >= 2000){
+						state = STATE_LANDING;
+					}
+				}
+			}
+			break;
+			case STATE_LANDING:
+			{
+				paneli = HAL_GetTick();
+				shift_reg_write_bit_16(&dop_sr, 1, 1);
+				if(HAL_GetTick() - paneli >= 1000)
+				{
+					shift_reg_write_bit_16(&dop_sr, 1, 0);
+					state = STATE_SUN_SEARCH;
+				}
+			}
+			break;
+			case STATE_SUN_SEARCH:
+			{
+
+
+			}
+		}
+
+
+
 
 		switch(nrf_state) {
 			case NRF_PACK_12:
@@ -639,34 +799,7 @@ int app_main(){
 			}
 
 
-
 		/*
-		switch(state){
-				case STATE_BEFORE_LAUNCH:
-					uint8_t knopka = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_4);
-					if(knopka == 1){
-					state_lux = photor;
-						if
-
-
-					}
-
-
-
-
-
-
-
-
-
-
-
-
-			}
-
-
-
-/*
 		printf("АКСЕЛЕРОМЕТР X %f\n АКСЕЛЕРОМЕТР Y %f\n АКСЕЛЕРОМЕТР Z %f\n", lsm_accel[0], lsm_accel[1], lsm_accel[2]);
 		printf("ГИРОСКОП X %f\n ГИРОСКОП Y %f\n ГИРОСКОП Z %f\n", lsm_gyro[0], lsm_gyro[1], lsm_gyro[2]);
 		printf("Температура %f\n\n\n\n", lsm_temp);
@@ -674,8 +807,10 @@ int app_main(){
 		printf("Давление  %lf \n Температура %lf \n", bme_data.pressure, bme_data.temperature);
 		printf("power %f\n current %f\n bus_voltage %f\n shunt_voltage %f\n" , power, current,bus_voltage,shunt_voltage);
 		*/
-	}
 
+
+
+	}
 
 	return 0;
 }

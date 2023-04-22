@@ -401,15 +401,15 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 }
 
 /**
-* @brief TIM_Encoder MSP Initialization
+* @brief TIM_OC MSP Initialization
 * This function configures the hardware resources used in this example
-* @param htim_encoder: TIM_Encoder handle pointer
+* @param htim_oc: TIM_OC handle pointer
 * @retval None
 */
-void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
+void HAL_TIM_OC_MspInit(TIM_HandleTypeDef* htim_oc)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(htim_encoder->Instance==TIM3)
+  if(htim_oc->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspInit 0 */
 
@@ -429,6 +429,9 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    /* TIM3 interrupt Init */
+    HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspInit 1 */
 
   /* USER CODE END TIM3_MspInit 1 */
@@ -437,14 +440,14 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
 }
 
 /**
-* @brief TIM_Encoder MSP De-Initialization
+* @brief TIM_OC MSP De-Initialization
 * This function freeze the hardware resources used in this example
-* @param htim_encoder: TIM_Encoder handle pointer
+* @param htim_oc: TIM_OC handle pointer
 * @retval None
 */
-void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
+void HAL_TIM_OC_MspDeInit(TIM_HandleTypeDef* htim_oc)
 {
-  if(htim_encoder->Instance==TIM3)
+  if(htim_oc->Instance==TIM3)
   {
   /* USER CODE BEGIN TIM3_MspDeInit 0 */
 
@@ -458,6 +461,8 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     */
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_6|GPIO_PIN_7);
 
+    /* TIM3 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspDeInit 1 */
 
   /* USER CODE END TIM3_MspDeInit 1 */
