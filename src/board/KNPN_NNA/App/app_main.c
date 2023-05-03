@@ -16,10 +16,12 @@
 #include "I2C_crutch/i2c-crutch.h"
 #include "fatfs.h"
 #include "string.h"
+#include "ATGM336H/nmea_gps.h"
 extern SPI_HandleTypeDef hspi2;
 extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim3;
+extern UART_HandleTypeDef huart6;
 
 
 #pragma pack(push, 1)
@@ -30,10 +32,10 @@ typedef struct paket_3{
 	int16_t temp;
 	float latitude;
 	float longitude;
-	int16_t height;
+	float height;
 	uint32_t time_s;
 	uint32_t time_us;
-	uint8_t fix;
+	int fix;
 	uint16_t crc;
 }paket_3;
 
@@ -128,7 +130,7 @@ shift_reg_t dop_sr;
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef * tim)
 {
-	shift_reg_write_bit_16(&dop_sr, 2, 0);
+	//shift_reg_write_bit_16(&dop_sr, 2, 0);
 }
 
 
@@ -151,7 +153,7 @@ void init() {
 
 void loop() {
     int32_t currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-    printf("value = %d\n", currCounter);
+    printf("value = %ld\n", currCounter);
 
     //currCounter = 32767 - ((currCounter-1) & 0xFFFF) ;
     if(currCounter > 32768) {
@@ -203,7 +205,7 @@ uint16_t sd_parse_to_bytes_pac3(char *buffer, paket_3 *paket3) {
     memset(buffer, 0, 300);
     uint16_t num_written = snprintf(
             buffer, 300,
-            "%d;%ld;%d;%d;%f;%f;%d;%ld;%ld;%d;%d;\n",
+            "%d;%ld;%d;%d;%f;%f;%f;%ld;%ld;%d;%d;\n",
             paket3->flag,paket3->time_pak,paket3->n,paket3->temp,paket3->latitude,
 			paket3->longitude,paket3->height,paket3->time_s,paket3->time_us,paket3->fix,paket3->crc );
     return num_written;
@@ -265,6 +267,10 @@ int app_main(){
 	state = STATE_BEFORE_LAUNCH;
 	int state_lux = 0;
 	int x;
+
+	uint8_t Uart6_data;
+	uint16_t Uart6_size = 1;
+	HAL_StatusTypeDef Uart6_error;
 
 	uint32_t tick;
 	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
@@ -409,6 +415,7 @@ int app_main(){
 	int comp;
 
 	onewire_init(&ds_cfg);
+	gps_init();
 	ds18b20_set_config(&ds_cfg, 100, -100, DS18B20_RESOLUTION_12_BIT);
 	ds18b20_start_conversion(&ds_cfg);
 	ds_start_time = HAL_GetTick();
@@ -448,11 +455,11 @@ int app_main(){
 
 		res1csv = f_puts("flag;time_pak;n;trmp_bme;press;current;bus_voltage;state;photor;crc\n", &HenFile_1csv);
 		res2csv = f_puts("flag;time_pak;n;lis_x;lis_y;lis_z;lsm_a_x;lsm_a_y;lsm_a_z;lsm_g_x;lsm_g_y;lsm_g_z;crc\n",&HenFile_2csv );
-		res3csv = f_puts("flag;time_pak;n;temp;platitude;longitude;height;time_s;time_us;fix;crc\n" , &HenFile_3csv );
+		res3csv = f_puts("flag;time_pak;n;temp;latitude;longitude;height;time_s;time_us;fix;crc\n" , &HenFile_3csv );
 
 	}
 
-	shift_reg_write_bit_16(&dop_sr, 2, 1);
+	//shift_reg_write_bit_16(&dop_sr, 2, 1);
 
 	uint32_t perepar;
 	uint32_t zemlya;
@@ -484,9 +491,35 @@ int app_main(){
 	float foto_7 = photorezistor_get_lux(phor_cfg);
 	float foto_8 = photorezistor_get_lux(phor_cfg);
 */
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
+/*
+	HAL_Delay(2000);
+	shift_reg_write_bit_16(&dop_sr, 6, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
+	HAL_Delay(15000);
+	shift_reg_write_bit_16(&dop_sr, 7, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
+	HAL_Delay(3000);
+	shift_reg_write_bit_16(&dop_sr, 0, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
+	*/
+	HAL_Delay(2000);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
+	HAL_Delay(2000);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
+	int64_t cookie;
 	while(1)
 	{
 		loop();
+		gps_work();
+		gps_get_coords(&cookie, &p3_sr.latitude, &p3_sr.longitude, &p3_sr.height, &p3_sr.fix);
+
+		//volatile Uart6_error = HAL_UART_Receive(&huart6, &Uart6_data, Uart6_size, HAL_MAX_DELAY);
 
 
 		/*
@@ -636,7 +669,7 @@ int app_main(){
 		int press_state = 0;
 
 
-
+		/*
 
 		switch(state){
 			case STATE_BEFORE_LAUNCH:
@@ -666,7 +699,7 @@ int app_main(){
 			{
 				height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
 				if(height <= 6.3){
-					shift_reg_write_bit_16(&dop_sr, 6, 1);
+					//shift_reg_write_bit_16(&dop_sr, 6, 1);
 					state = STATE_DESENT;
 					perepar = HAL_GetTick();
 				}
@@ -676,7 +709,7 @@ int app_main(){
 			{
 				if(HAL_GetTick() - perepar >= 3000)
 				{
-					shift_reg_write_bit_16(&dop_sr, 6, 0);
+					//shift_reg_write_bit_16(&dop_sr, 6, 0);
 					zemlya = HAL_GetTick();
 					if(HAL_GetTick() - zemlya >= 2000){
 						state = STATE_LANDING;
@@ -687,10 +720,10 @@ int app_main(){
 			case STATE_LANDING:
 			{
 				paneli = HAL_GetTick();
-				shift_reg_write_bit_16(&dop_sr, 1, 1);
+				//shift_reg_write_bit_16(&dop_sr, 1, 1);
 				if(HAL_GetTick() - paneli >= 1000)
 				{
-					shift_reg_write_bit_16(&dop_sr, 1, 0);
+					//shift_reg_write_bit_16(&dop_sr, 1, 0);
 					state = STATE_SUN_SEARCH;
 				}
 			}
@@ -702,7 +735,7 @@ int app_main(){
 			}
 		}
 
-
+		*/
 
 
 		switch(nrf_state) {
