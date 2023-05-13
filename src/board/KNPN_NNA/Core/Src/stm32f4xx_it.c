@@ -219,17 +219,17 @@ void TIM3_IRQHandler(void)
 void USART6_IRQHandler(void)
 {
   /* USER CODE BEGIN USART6_IRQn 0 */
-	__disable_irq();
-	#pragma GCC diagnostic push;
-	#pragma GCC diagnostic ignored "-Wunused-variable"
-	    volatile int x = huart6.Instance->SR;
-	#pragma GCC diagnostic pop
-	    volatile uint16_t byte = huart6.Instance->DR;
-	    __enable_irq();
+    //__disable_irq();
+//#pragma GCC diagnostic push;
+//#pragma GCC diagnostic ignored "-Wunused-variable"
+    volatile uint32_t sr = huart6.Instance->SR;
+//#pragma GCC diagnostic pop
+    volatile uint32_t byte = huart6.Instance->DR;
+    //__enable_irq();
 
-	    gps_push_byte(byte);
+    gps_push_byte(byte);
+    (void)sr;
   /* USER CODE END USART6_IRQn 0 */
-  HAL_UART_IRQHandler(&huart6);
   /* USER CODE BEGIN USART6_IRQn 1 */
 
   /* USER CODE END USART6_IRQn 1 */

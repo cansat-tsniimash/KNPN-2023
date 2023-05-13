@@ -18,7 +18,7 @@
 #include "string.h"
 #include "ATGM336H/nmea_gps.h"
 extern SPI_HandleTypeDef hspi2;
-extern ADC_HandleTypeDef hadc1;
+//extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart6;
@@ -218,6 +218,42 @@ uint16_t sd_parse_to_bytes_pac3(char *buffer, paket_3 *paket3) {
 
 int app_main(){
 
+
+	// Настройка сдвигового регистра доп
+
+	dop_sr.latch_port = GPIOB;
+	dop_sr.latch_pin = GPIO_PIN_12;
+	dop_sr.oe_port = GPIOB;
+	dop_sr.oe_pin = GPIO_PIN_12;
+	dop_sr.value = 0;
+	dop_sr.bus = &hspi2;
+	shift_reg_init(&dop_sr);
+	shift_reg_write_8(&dop_sr, 0x00);
+
+
+	//HAL_Delay(2000);
+	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,1);
+	//HAL_Delay(2000);
+	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,0);
+
+
+/*while(1)
+{
+	HAL_Delay(2000);
+	shift_reg_write_bit_8(&dop_sr, 6, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_8(&dop_sr, 6, 0);
+	HAL_Delay(1000);
+	shift_reg_write_bit_8(&dop_sr, 7, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_8(&dop_sr, 7, 0);
+	HAL_Delay(3000);
+	shift_reg_write_bit_8(&dop_sr, 0, 1);
+	HAL_Delay(2000);
+	shift_reg_write_bit_8(&dop_sr, 0, 0);
+}
+*/
+
 	FIL HenFile_1; // хендлер файла 1
 	FIL HenFile_2; // хендлер файла 2
 	FIL HenFile_3; // хендлер файла 3
@@ -293,6 +329,7 @@ int app_main(){
 	shift_reg_init(&imu_sr);
 	shift_reg_write_16(&imu_sr, 0xFFFF);
 
+/*
 	// Настройка сдвигового регистра доп
 
 	dop_sr.latch_port = GPIOB;
@@ -302,29 +339,31 @@ int app_main(){
 	dop_sr.value = 0;
 	dop_sr.bus = &hspi2;
 	shift_reg_init(&dop_sr);
-	shift_reg_write_16(&dop_sr, 0xFFFF);
+	shift_reg_write_8(&dop_sr, 0x00);
+*/
+
 	init();
 
 	// Настройка сдвигового регистра NRF
-	shift_reg_t nrf_sr;
-	nrf_sr.latch_port = GPIOC;
-	nrf_sr.latch_pin = GPIO_PIN_4;
-	nrf_sr.oe_port = GPIOC;
-	nrf_sr.oe_pin = GPIO_PIN_5;
-	nrf_sr.value = 0;
-	nrf_sr.bus = &hspi2;
-	shift_reg_init(&nrf_sr);
-	shift_reg_write_8(&nrf_sr, 0xFF);
+	shift_reg_t nnrf_cfg;
+	nnrf_cfg.latch_port = GPIOC;
+	nnrf_cfg.latch_pin = GPIO_PIN_4;
+	nnrf_cfg.oe_port = GPIOC;
+	nnrf_cfg.oe_pin = GPIO_PIN_5;
+	nnrf_cfg.value = 0;
+	nnrf_cfg.bus = &hspi2;
+	shift_reg_init(&nnrf_cfg);
+	shift_reg_write_8(&nnrf_cfg, 0xFF);
 
 
 	// Настройка nrf
-	nrf24_spi_pins_sr_t rf_sr;
-	rf_sr.pos_CE = 0;
-	rf_sr.pos_CS = 1;
-	rf_sr.this =  &nrf_sr;
+	nrf24_spi_pins_sr_t nrf_cfg;
+	nrf_cfg.pos_CE = 0;
+	nrf_cfg.pos_CS = 1;
+	nrf_cfg.this =  &nnrf_cfg;
 	nrf24_lower_api_config_t nrf;
 
-	nrf24_spi_init_sr(&nrf, &hspi2 ,&rf_sr );
+	nrf24_spi_init_sr(&nrf, &hspi2 ,&nrf_cfg );
 
 	nrf24_rf_config_t nrf_config;
 	nrf24_protocol_config_t nrf_protocol_config;
@@ -401,9 +440,9 @@ int app_main(){
 	ds_cfg.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
-	photorezistor_t phor_cfg;
-	phor_cfg.hadc = &hadc1;
-	phor_cfg.resist = 2000;
+	//photorezistor_t phor_cfg;
+	//phor_cfg.hadc = &hadc1;
+	//phor_cfg.resist = 2000;
 
 
 	ina219_primary_data_t primary_data;
@@ -416,6 +455,8 @@ int app_main(){
 
 	onewire_init(&ds_cfg);
 	gps_init();
+	__HAL_UART_ENABLE_IT(&huart6, UART_IT_RXNE);
+	__HAL_UART_ENABLE_IT(&huart6, UART_IT_ERR);
 	ds18b20_set_config(&ds_cfg, 100, -100, DS18B20_RESOLUTION_12_BIT);
 	ds18b20_start_conversion(&ds_cfg);
 	ds_start_time = HAL_GetTick();
@@ -466,11 +507,10 @@ int app_main(){
 	uint32_t paneli;
 	uint32_t doukladki;
 
-	shift_reg_write_bit_16(&imu_sr, 12, 0);
 	shift_reg_write_bit_16(&imu_sr, 11, 0);
 
 
-	photor = photorezistor_get_lux(phor_cfg);
+//	photor = photorezistor_get_lux(phor_cfg);
 	float photor_state = photor;
 /*
 	int foto_sp_1 = 1;
@@ -491,27 +531,37 @@ int app_main(){
 	float foto_7 = photorezistor_get_lux(phor_cfg);
 	float foto_8 = photorezistor_get_lux(phor_cfg);
 */
-	shift_reg_write_bit_16(&dop_sr, 6, 0);
-	shift_reg_write_bit_16(&dop_sr, 7, 0);
-	shift_reg_write_bit_16(&dop_sr, 0, 0);
+
 /*
+	shift_reg_write_bit_8(&dop_sr, 6, 0);
+	shift_reg_write_bit_8(&dop_sr, 7, 0);
+	shift_reg_write_bit_8(&dop_sr, 0, 0);
+
 	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 6, 1);
+	shift_reg_write_bit_8(&dop_sr, 6, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 6, 0);
-	HAL_Delay(15000);
-	shift_reg_write_bit_16(&dop_sr, 7, 1);
+	shift_reg_write_bit_8(&dop_sr, 6, 0);
+	HAL_Delay(1000);
+	shift_reg_write_bit_8(&dop_sr, 7, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 7, 0);
+	shift_reg_write_bit_8(&dop_sr, 7, 0);
 	HAL_Delay(3000);
-	shift_reg_write_bit_16(&dop_sr, 0, 1);
+	shift_reg_write_bit_8(&dop_sr, 0, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 0, 0);
-	*/
+	shift_reg_write_bit_8(&dop_sr, 0, 0);
+*/
+
+
+/*
 	HAL_Delay(2000);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
 	HAL_Delay(2000);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5,1);
+	HAL_Delay(2000);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5,0);
+*/
+
 	int64_t cookie;
 	while(1)
 	{
@@ -564,7 +614,7 @@ int app_main(){
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
-		photor = photorezistor_get_lux(phor_cfg);
+		//photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
 		{
