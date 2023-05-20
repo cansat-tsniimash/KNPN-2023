@@ -17,6 +17,7 @@
 #include "fatfs.h"
 #include "string.h"
 #include "ATGM336H/nmea_gps.h"
+#include "AD5593/ad5593.h"
 extern SPI_HandleTypeDef hspi2;
 //extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
@@ -25,19 +26,6 @@ extern UART_HandleTypeDef huart6;
 
 
 #pragma pack(push, 1)
-typedef struct paket_3{
-	uint8_t flag;
-	uint32_t time_pak;
-	uint16_t n;
-	int16_t temp;
-	float latitude;
-	float longitude;
-	float height;
-	uint32_t time_s;
-	uint32_t time_us;
-	int fix;
-	uint16_t crc;
-}paket_3;
 
 typedef struct paket_1{
 	uint8_t flag;
@@ -67,6 +55,20 @@ typedef struct paket_2{
 	int16_t lsm_g_z;
 	uint16_t crc;
 }paket_2;
+
+typedef struct paket_3{
+	uint8_t flag;
+	uint32_t time_pak;
+	uint16_t n;
+	int16_t temp;
+	float latitude;
+	float longitude;
+	float height;
+	uint32_t time_s;
+	uint32_t time_us;
+	int fix;
+	uint16_t crc;
+}paket_3;
 
 #pragma pack(pop)
 
@@ -178,6 +180,7 @@ void loop() {
     }
 
     HAL_Delay(100);
+
 }
 FATFS fileSystem; // переменная типа FATFS
 
@@ -212,6 +215,81 @@ uint16_t sd_parse_to_bytes_pac3(char *buffer, paket_3 *paket3) {
 }
 
 
+static ad5593_t adc;
+
+static int setup_adc()
+{
+	ad5593_t * dev = &adc;
+	int rc = ad5593_ctor(dev, AD5593_ADDR_A0_HIGH, &hi2c1);
+	if (0 != rc)
+	{
+		perror("unable to ctor");
+		return EXIT_FAILURE;
+	}
+
+	HAL_Delay(1);
+
+	// Включаем питание на чем хотим
+	printf("power config\n");
+	rc = ad5593_power_config(dev, AD5593_POWER_DAC_REF, 0x00);
+	if (0 != rc)
+	{
+		perror("unable to power config");
+		return EXIT_FAILURE;
+	}
+
+	// Аналоговая конфигурация
+	printf("analog config\n");
+	ad5593_an_config_t an_config;
+	an_config.adc_buffer_enable = false;
+	an_config.adc_buffer_precharge = false;
+	an_config.adc_range = AD5593_RANGE_1REF;
+	rc = ad5593_an_config(dev, &an_config);
+	if (0 != rc)
+	{
+		perror("unable to an config");
+		return EXIT_FAILURE;
+	}
+
+	// Настройка пинов
+	printf("pin config\n");
+	rc = ad5593_pin_config(dev, 0xFF, AD5593_PINMODE_ADC);
+	if (0 != rc)
+	{
+		perror("unable to setup pins");
+		return EXIT_FAILURE;
+	}
+
+	return 0;
+}
+
+
+static void test_adc()
+{
+	ad5593_t * dev = &adc;
+
+	ad5593_channel_id_t channels[] = {
+			AD5593_ADC_0, AD5593_ADC_1, AD5593_ADC_2, AD5593_ADC_3,
+			AD5593_ADC_4, AD5593_ADC_5, AD5593_ADC_6, AD5593_ADC_7,
+			AD5593_ADC_TEMP
+	};
+	for (int i = 0; i < sizeof(channels)/sizeof(channels[0]) - 1; i++)
+	{
+		uint16_t raw;
+		ad5593_channel_id_t channel = channels[i];
+		int rc = ad5593_adc_read(dev, channel, &raw);
+		if (0 != rc)
+			perror("bad read");
+
+		float volts_ad = raw * 3.3 / 4095;	//Volts
+		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
+		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
+
+		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
+		printf("%9.2f", lux_ad);
+	}
+	printf("\n");
+}
 
 
 
@@ -444,7 +522,11 @@ int app_main(){
 	//phor_cfg.hadc = &hadc1;
 	//phor_cfg.resist = 2000;
 
-
+	// Инициализация ad5593
+	setup_adc();
+	//while(1){
+		test_adc();
+	//}
 	ina219_primary_data_t primary_data;
 
 	ina219_secondary_data_t secondary_data;
@@ -552,22 +634,43 @@ int app_main(){
 */
 
 
-/*
-	HAL_Delay(2000);
+
+	HAL_Delay(5000);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
-	HAL_Delay(2000);
+	HAL_Delay(10000);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5,1);
-	HAL_Delay(2000);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5,0);
-*/
+
+
+
 
 	int64_t cookie;
+	/*
+	int max_time_oborot 3000;
+	uint32_t time_oborot HAL_GetTick();
+	float max_photor = 0;
+
+
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
+	photor = max_photor;
+	if(photor > max_photor)
+	{
+		photor = max_photor
+	}
+
+	if(time_oborot - max_time_oborot == 0)
+	{
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
+	}
+*/
+
+
 	while(1)
 	{
 		loop();
 		gps_work();
 		gps_get_coords(&cookie, &p3_sr.latitude, &p3_sr.longitude, &p3_sr.height, &p3_sr.fix);
+
 
 		//volatile Uart6_error = HAL_UART_Receive(&huart6, &Uart6_data, Uart6_size, HAL_MAX_DELAY);
 
@@ -719,8 +822,8 @@ int app_main(){
 		int press_state = 0;
 
 
-		/*
 
+/*
 		switch(state){
 			case STATE_BEFORE_LAUNCH:
 			{
@@ -784,8 +887,8 @@ int app_main(){
 
 			}
 		}
+*/
 
-		*/
 
 
 		switch(nrf_state) {
