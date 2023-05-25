@@ -18,12 +18,14 @@
 #include "string.h"
 #include "ATGM336H/nmea_gps.h"
 #include "AD5593/ad5593.h"
+#include "cfg.h"
 extern SPI_HandleTypeDef hspi2;
 //extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart6;
 
+float adc_znacg[9];
 
 #pragma pack(push, 1)
 
@@ -268,6 +270,7 @@ static void test_adc()
 {
 	ad5593_t * dev = &adc;
 
+
 	ad5593_channel_id_t channels[] = {
 			AD5593_ADC_0, AD5593_ADC_1, AD5593_ADC_2, AD5593_ADC_3,
 			AD5593_ADC_4, AD5593_ADC_5, AD5593_ADC_6, AD5593_ADC_7,
@@ -285,6 +288,8 @@ static void test_adc()
 		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
+		adc_znacg[i] = lux_ad;
+
 		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
 		printf("%9.2f", lux_ad);
 	}
@@ -296,7 +301,7 @@ static void test_adc()
 
 int app_main(){
 
-
+	/*
 	// Настройка сдвигового регистра доп
 
 	dop_sr.latch_port = GPIOB;
@@ -313,9 +318,10 @@ int app_main(){
 	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,1);
 	//HAL_Delay(2000);
 	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,0);
+	*/
 
-
-/*while(1)
+/*
+ * while(1)
 {
 	HAL_Delay(2000);
 	shift_reg_write_bit_8(&dop_sr, 6, 1);
@@ -393,134 +399,39 @@ int app_main(){
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
 
-
-
-
-	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
-	imu_sr.latch_port = GPIOC;
-	imu_sr.latch_pin = GPIO_PIN_1;
-	imu_sr.oe_port = GPIOC;
-	imu_sr.oe_pin = GPIO_PIN_13;
-	imu_sr.value = 0;
-	imu_sr.bus = &hspi2;
-	shift_reg_init(&imu_sr);
-	shift_reg_write_16(&imu_sr, 0xFFFF);
+	shift_reg_t nrf_sr;
+	nrf24_spi_pins_sr_t nrf_cfg;
+	nrf24_lower_api_config_t nrf;
+	stmdev_ctx_t lsm_ctx;
+	stmdev_ctx_t lis_ctx;
+	bme_spi_intf_sr bme_cfg;
+	ds18b20_t ds_cfg;
+	photorezistor_t phor_cfg;
+	shift_reg_t *dop_sr
 
-/*
-	// Настройка сдвигового регистра доп
 
-	dop_sr.latch_port = GPIOB;
-	dop_sr.latch_pin = GPIO_PIN_12;
-	dop_sr.oe_port = GPIOB;
-	dop_sr.oe_pin = GPIO_PIN_12;
-	dop_sr.value = 0;
-	dop_sr.bus = &hspi2;
-	shift_reg_init(&dop_sr);
-	shift_reg_write_8(&dop_sr, 0x00);
-*/
+
 
 	init();
 
-	// Настройка сдвигового регистра NRF
-	shift_reg_t nnrf_cfg;
-	nnrf_cfg.latch_port = GPIOC;
-	nnrf_cfg.latch_pin = GPIO_PIN_4;
-	nnrf_cfg.oe_port = GPIOC;
-	nnrf_cfg.oe_pin = GPIO_PIN_5;
-	nnrf_cfg.value = 0;
-	nnrf_cfg.bus = &hspi2;
-	shift_reg_init(&nnrf_cfg);
-	shift_reg_write_8(&nnrf_cfg, 0xFF);
+	init_sr(&imu_sr);
 
+	init_dop_sr(&dop_sr);
 
-	// Настройка nrf
-	nrf24_spi_pins_sr_t nrf_cfg;
-	nrf_cfg.pos_CE = 0;
-	nrf_cfg.pos_CS = 1;
-	nrf_cfg.this =  &nnrf_cfg;
-	nrf24_lower_api_config_t nrf;
+	init_sr_radio(&nrf_sr);
 
-	nrf24_spi_init_sr(&nrf, &hspi2 ,&nrf_cfg );
+	init_radio(&nrf,&nrf_sr);
 
-	nrf24_rf_config_t nrf_config;
-	nrf24_protocol_config_t nrf_protocol_config;
+	init_lsm(&lsm_ctx,&imu_sr);
 
-	nrf24_mode_power_down(&nrf);
+	init_lis(&lis_ctx,&imu_sr);
 
-	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
-	nrf_config.rf_channel = 101;
-	nrf_config.tx_power = NRF24_TXPOWER_MINUS_18_DBM;
-	nrf24_setup_rf(&nrf, &nrf_config);
+	init_bme(&bme_cfg,&imu_sr);
 
-	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
-	nrf_protocol_config.auto_retransmit_count = 0;
-	nrf_protocol_config.auto_retransmit_delay = 0;
-	nrf_protocol_config.crc_size = NRF24_CRCSIZE_1BYTE;
-	nrf_protocol_config.en_ack_payload = true;
-	nrf_protocol_config.en_dyn_ack = true;
-	nrf_protocol_config.en_dyn_payload_size = true;
-	nrf24_setup_protocol(&nrf, &nrf_protocol_config);
+	init_ds(&ds_cfg);
 
-
-	nrf24_pipe_set_tx_addr(&nrf,0xacacacacac);
-
-	//настройка пайпа(штука , чтобы принимать)
-	nrf24_pipe_config_t pipe_config;
-	for (int i = 1; i < 6; i++)
-	{
-		pipe_config.address = 0xacacacacac;
-		pipe_config.address = (pipe_config.address & ~((uint64_t)0xff << 32)) | ((uint64_t)(i + 7) << 32);
-		pipe_config.enable_auto_ack = false;
-		pipe_config.payload_size = -1;
-		nrf24_pipe_rx_start(&nrf, i, &pipe_config);
-	}
-
-	pipe_config.address = 0xafafafaf01;
-	pipe_config.enable_auto_ack = false;
-	pipe_config.payload_size = -1;
-
-	nrf24_pipe_rx_start(&nrf, 0, &pipe_config);
-
-	nrf24_mode_standby(&nrf);
-	nrf24_mode_tx(&nrf);
-
-
-	// Настройка Lis
-	stmdev_ctx_t lis_ctx;
-	lis_spi_intf_sr lis_cfg;
-	lis_cfg.spi = &hspi2;
-	lis_cfg.sr = &imu_sr;
-	lis_cfg.sr_pin = 3;
-
-	lisset_sr(&lis_ctx, &lis_cfg);
-
-	// Настройка Lsm
-	stmdev_ctx_t stm_ctx;
-	lsm_spi_intf_sr lsm_cfg;
-	lsm_cfg.spi = &hspi2;
-	lsm_cfg.sr = &imu_sr;
-	lsm_cfg.sr_pin = 4;
-
-	lsmset_sr(&stm_ctx, &lsm_cfg);
-
-	// Настройка bme
-	bme_spi_intf_sr bme_cfg;
-	bme_cfg.spi = &hspi2;
-	bme_cfg.sr = &imu_sr;
-	bme_cfg.sr_pin = 2;
-
-	bme_init_default_sr(&bme, &bme_cfg);
-
-	// Настройка ds
-	ds18b20_t ds_cfg;
-	ds_cfg.onewire_pin = One_Wire_Pin;
-	ds_cfg.onewire_port = One_Wire_GPIO_Port;
-
-	// Настройка фоторезистора
-	//photorezistor_t phor_cfg;
-	//phor_cfg.hadc = &hadc1;
-	//phor_cfg.resist = 2000;
+	init_photor(&phor_cfg);
 
 	// Инициализация ad5593
 	setup_adc();
@@ -614,24 +525,23 @@ int app_main(){
 	float foto_8 = photorezistor_get_lux(phor_cfg);
 */
 
-/*
-	shift_reg_write_bit_8(&dop_sr, 6, 0);
-	shift_reg_write_bit_8(&dop_sr, 7, 0);
-	shift_reg_write_bit_8(&dop_sr, 0, 0);
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
 
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 1);
+	shift_reg_write_bit_16(&dop_sr, 6, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 0);
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
 	HAL_Delay(1000);
-	shift_reg_write_bit_8(&dop_sr, 7, 1);
+	shift_reg_write_bit_16(&dop_sr, 7, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 7, 0);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
 	HAL_Delay(3000);
-	shift_reg_write_bit_8(&dop_sr, 0, 1);
+	shift_reg_write_bit_16(&dop_sr, 0, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 0, 0);
-*/
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
+
 
 
 
@@ -714,7 +624,7 @@ int app_main(){
 
 
 
-		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
+		lsmread(&lsm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
 		//photor = photorezistor_get_lux(phor_cfg);

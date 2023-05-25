@@ -230,6 +230,7 @@ void USART6_IRQHandler(void)
     gps_push_byte(byte);
     (void)sr;
   /* USER CODE END USART6_IRQn 0 */
+  HAL_UART_IRQHandler(&huart6);
   /* USER CODE BEGIN USART6_IRQn 1 */
 
   /* USER CODE END USART6_IRQn 1 */
