@@ -18,8 +18,9 @@
 #include "string.h"
 #include "ATGM336H/nmea_gps.h"
 #include "AD5593/ad5593.h"
+#include "math.h"
 extern SPI_HandleTypeDef hspi2;
-//extern ADC_HandleTypeDef hadc1;
+extern ADC_HandleTypeDef hadc1;
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim3;
 extern UART_HandleTypeDef huart6;
@@ -263,6 +264,9 @@ static int setup_adc()
 	return 0;
 }
 
+float foto_znach[8];
+
+
 
 static void test_adc()
 {
@@ -271,7 +275,7 @@ static void test_adc()
 	ad5593_channel_id_t channels[] = {
 			AD5593_ADC_0, AD5593_ADC_1, AD5593_ADC_2, AD5593_ADC_3,
 			AD5593_ADC_4, AD5593_ADC_5, AD5593_ADC_6, AD5593_ADC_7,
-			AD5593_ADC_TEMP
+
 	};
 	for (int i = 0; i < sizeof(channels)/sizeof(channels[0]) - 1; i++)
 	{
@@ -285,6 +289,8 @@ static void test_adc()
 		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
+		foto_znach[i] = lux_ad;
+
 		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
 		printf("%9.2f", lux_ad);
 	}
@@ -296,41 +302,6 @@ static void test_adc()
 
 int app_main(){
 
-
-	// Настройка сдвигового регистра доп
-
-	dop_sr.latch_port = GPIOB;
-	dop_sr.latch_pin = GPIO_PIN_12;
-	dop_sr.oe_port = GPIOB;
-	dop_sr.oe_pin = GPIO_PIN_12;
-	dop_sr.value = 0;
-	dop_sr.bus = &hspi2;
-	shift_reg_init(&dop_sr);
-	shift_reg_write_8(&dop_sr, 0x00);
-
-
-	//HAL_Delay(2000);
-	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,1);
-	//HAL_Delay(2000);
-	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12,0);
-
-
-/*while(1)
-{
-	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 0);
-	HAL_Delay(1000);
-	shift_reg_write_bit_8(&dop_sr, 7, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 7, 0);
-	HAL_Delay(3000);
-	shift_reg_write_bit_8(&dop_sr, 0, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 0, 0);
-}
-*/
 
 	FIL HenFile_1; // хендлер файла 1
 	FIL HenFile_2; // хендлер файла 2
@@ -407,7 +378,7 @@ int app_main(){
 	shift_reg_init(&imu_sr);
 	shift_reg_write_16(&imu_sr, 0xFFFF);
 
-/*
+
 	// Настройка сдвигового регистра доп
 
 	dop_sr.latch_port = GPIOB;
@@ -417,8 +388,8 @@ int app_main(){
 	dop_sr.value = 0;
 	dop_sr.bus = &hspi2;
 	shift_reg_init(&dop_sr);
-	shift_reg_write_8(&dop_sr, 0x00);
-*/
+	shift_reg_write_16(&dop_sr, 0x0000);
+
 
 	init();
 
@@ -518,9 +489,9 @@ int app_main(){
 	ds_cfg.onewire_port = One_Wire_GPIO_Port;
 
 	// Настройка фоторезистора
-	//photorezistor_t phor_cfg;
-	//phor_cfg.hadc = &hadc1;
-	//phor_cfg.resist = 2000;
+	photorezistor_t phor_cfg;
+	phor_cfg.hadc = &hadc1;
+	phor_cfg.resist = 2000;
 
 	// Инициализация ad5593
 	setup_adc();
@@ -594,44 +565,26 @@ int app_main(){
 
 //	photor = photorezistor_get_lux(phor_cfg);
 	float photor_state = photor;
-/*
-	int foto_sp_1 = 1;
-	int foto_sp_2 = 2;
-	int foto_sp_3 = 3;
-	int foto_sp_4 = 4;
-	int foto_sp_5 = 5;
-	int foto_sp_6 = 6;
-	int foto_sp_7 = 7;
-	int foto_sp_8 = 8;
 
-	float foto_1 = photorezistor_get_lux(phor_cfg);
-	float foto_2 = photorezistor_get_lux(phor_cfg);
-	float foto_3 = photorezistor_get_lux(phor_cfg);
-	float foto_4 = photorezistor_get_lux(phor_cfg);
-	float foto_5 = photorezistor_get_lux(phor_cfg);
-	float foto_6 = photorezistor_get_lux(phor_cfg);
-	float foto_7 = photorezistor_get_lux(phor_cfg);
-	float foto_8 = photorezistor_get_lux(phor_cfg);
-*/
 
-/*
-	shift_reg_write_bit_8(&dop_sr, 6, 0);
-	shift_reg_write_bit_8(&dop_sr, 7, 0);
-	shift_reg_write_bit_8(&dop_sr, 0, 0);
+
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
 
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 1);
+	shift_reg_write_bit_16(&dop_sr, 6, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 6, 0);
+	shift_reg_write_bit_16(&dop_sr, 6, 0);
 	HAL_Delay(1000);
-	shift_reg_write_bit_8(&dop_sr, 7, 1);
+	shift_reg_write_bit_16(&dop_sr, 7, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 7, 0);
+	shift_reg_write_bit_16(&dop_sr, 7, 0);
 	HAL_Delay(3000);
-	shift_reg_write_bit_8(&dop_sr, 0, 1);
+	shift_reg_write_bit_16(&dop_sr, 0, 1);
 	HAL_Delay(2000);
-	shift_reg_write_bit_8(&dop_sr, 0, 0);
-*/
+	shift_reg_write_bit_16(&dop_sr, 0, 0);
+
 
 
 
@@ -644,27 +597,70 @@ int app_main(){
 
 
 	int64_t cookie;
-	/*
-	int max_time_oborot 3000;
-	uint32_t time_oborot HAL_GetTick();
-	float max_photor = 0;
 
+	// так можно проставить начальное значение счетчика:
+		// __HAL_TIM_SET_COUNTER(&htim1, 32760);
+	int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
+	currCounter = 32767 - ((currCounter-1) & 0xFFFF);
+	if(currCounter != prevCounter) {
+		//char buff[16];
 
+		// выводим куда-то currCounter
+		// snprintf(buff, sizeof(buff), "%06d", currCounter);
 
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
-	photor = max_photor;
-	if(photor > max_photor)
-	{
-		photor = max_photor
+		prevCounter = currCounter;
 	}
 
-	if(time_oborot - max_time_oborot == 0)
+	float foto_max;
+	float i_max;
+	foto_max = foto_znach[0];
+	int i;
+
+///////////////////////////////////////////
+	for(i = 0;i < 8;i++ )
 	{
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
+		if(foto_znach[i] > foto_max)
+		{
+			foto_max = foto_znach[i];
+			i_max = i;
+		}
 	}
-*/
 
+	float os_y = 45*i_max/5.625-8;
 
+	if(abs(currCounter - os_y) < 1)
+	{
+		shift_reg_write_bit_16(&dop_sr, 2, 0);
+	}
+	else
+	{
+		shift_reg_write_bit_16(&dop_sr, 2, 1);
+	}
+////////////////////////////////////////////
+
+	int oborot = 3000;
+
+////////////////////////////////////////////
+	float max = 0;
+	float now;
+	uint32_t max_time = HAL_GetTick();
+	shift_reg_write_bit_16(&dop_sr, 4, 1);
+	uint32_t start_time = HAL_GetTick();
+	while(HAL_GetTick() - start_time < oborot)
+	{
+		now = photorezistor_get_lux(phor_cfg);
+		if (now > max)
+		{
+			max = now;
+			max_time = HAL_GetTick();
+		}
+	}
+	shift_reg_write_bit_16(&dop_sr, 4, 0);
+
+	shift_reg_write_bit_16(&dop_sr, 5, 1);
+	HAL_Delay(max_time - start_time);
+	shift_reg_write_bit_16(&dop_sr, 5, 0);
+	////////////////////////////////////////
 	while(1)
 	{
 		loop();
@@ -675,41 +671,9 @@ int app_main(){
 		//volatile Uart6_error = HAL_UART_Receive(&huart6, &Uart6_data, Uart6_size, HAL_MAX_DELAY);
 
 
-		/*
-		shift_reg_write_bit_16(&dop_sr, 6, 1);
-		HAL_Delay(5000);
-		shift_reg_write_bit_16(&dop_sr, 6, 0);
-		HAL_Delay(1000);
-		shift_reg_write_bit_16(&dop_sr, 7, 1);
-		HAL_Delay(3000);
-		shift_reg_write_bit_16(&dop_sr, 7, 0);
-		HAL_Delay(1000);
-		shift_reg_write_bit_16(&dop_sr, 0, 1);
-		HAL_Delay(3000);
-		shift_reg_write_bit_16(&dop_sr, 0, 0);
 
 
 
-		shift_reg_write_bit_16(&dop_sr, 1, 1);
-		HAL_Delay(1000);
-		shift_reg_write_bit_16(&dop_sr, 1, 0);
-
-		*/
-
-
-	    // так можно проставить начальное значение счетчика:
-		// __HAL_TIM_SET_COUNTER(&htim1, 32760);
-
-		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
-		if(currCounter != prevCounter) {
-			//char buff[16];
-
-			// выводим куда-то currCounter
-			// snprintf(buff, sizeof(buff), "%06d", currCounter);
-
-			prevCounter = currCounter;
-		}
 
 
 
