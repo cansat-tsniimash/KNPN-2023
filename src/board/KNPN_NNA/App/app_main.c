@@ -496,7 +496,6 @@ int app_main(){
 	// Инициализация ad5593
 	setup_adc();
 	//while(1){
-		test_adc();
 	//}
 	ina219_primary_data_t primary_data;
 
@@ -560,12 +559,12 @@ int app_main(){
 	uint32_t paneli;
 	uint32_t doukladki;
 
-	shift_reg_write_bit_16(&imu_sr, 11, 0);
+
 
 
 //	photor = photorezistor_get_lux(phor_cfg);
 	float photor_state = photor;
-
+/*
 
 
 	shift_reg_write_bit_16(&dop_sr, 6, 0);
@@ -593,7 +592,7 @@ int app_main(){
 	HAL_Delay(10000);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
 
-
+*/
 
 
 	int64_t cookie;
@@ -610,6 +609,8 @@ int app_main(){
 
 		prevCounter = currCounter;
 	}
+
+	test_adc();
 
 	float foto_max;
 	float i_max;
@@ -638,6 +639,9 @@ int app_main(){
 	}
 ////////////////////////////////////////////
 
+
+
+/*
 	int oborot = 3000;
 
 ////////////////////////////////////////////
@@ -658,9 +662,9 @@ int app_main(){
 	shift_reg_write_bit_16(&dop_sr, 4, 0);
 
 	shift_reg_write_bit_16(&dop_sr, 5, 1);
-	HAL_Delay(max_time - start_time);
+	HAL_Delay(oborot-(max_time - start_time));
 	shift_reg_write_bit_16(&dop_sr, 5, 0);
-	////////////////////////////////////////
+	*/////////////////////////////////////////
 	while(1)
 	{
 		loop();
