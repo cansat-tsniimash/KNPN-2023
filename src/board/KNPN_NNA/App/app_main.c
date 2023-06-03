@@ -153,10 +153,10 @@ void init() {
     //HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
 
 }
-
+int32_t currCounter;
 void loop() {
-    int32_t currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-    printf("value = %ld\n", currCounter);
+    currCounter = __HAL_TIM_GET_COUNTER(&htim3);
+    //printf("value = %ld\n", currCounter);
 
     //currCounter = 32767 - ((currCounter-1) & 0xFFFF) ;
     if(currCounter > 32768) {
@@ -292,7 +292,7 @@ static void test_adc()
 		foto_znach[i] = lux_ad;
 
 		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
-		printf("%9.2f", lux_ad);
+		//printf("%9.2f", lux_ad);
 	}
 	printf("\n");
 }
@@ -557,7 +557,7 @@ int app_main(){
 	uint32_t perepar;
 	uint32_t zemlya;
 	uint32_t paneli;
-	uint32_t doukladki;
+	uint32_t doukladki ;
 
 
 
@@ -594,32 +594,22 @@ int app_main(){
 
 */
 
-
 	int64_t cookie;
 
-	// так можно проставить начальное значение счетчика:
-		// __HAL_TIM_SET_COUNTER(&htim1, 32760);
-	int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-	currCounter = 32767 - ((currCounter-1) & 0xFFFF);
-	if(currCounter != prevCounter) {
-		//char buff[16];
-
-		// выводим куда-то currCounter
-		// snprintf(buff, sizeof(buff), "%06d", currCounter);
-
-		prevCounter = currCounter;
-	}
 
 	test_adc();
 
 	float foto_max;
-	float i_max;
+	int i_max = 0;
 	foto_max = foto_znach[0];
-	int i;
+	float gradus;
+	int time_gradus;
 
 ///////////////////////////////////////////
-	for(i = 0;i < 8;i++ )
+	for(int i = 0;i < 8;i++ )
 	{
+		printf("%9.2f \n", foto_znach[i]);
+
 		if(foto_znach[i] > foto_max)
 		{
 			foto_max = foto_znach[i];
@@ -627,16 +617,14 @@ int app_main(){
 		}
 	}
 
-	float os_y = 45*i_max/5.625-8;
 
-	if(abs(currCounter - os_y) < 1)
-	{
-		shift_reg_write_bit_16(&dop_sr, 2, 0);
-	}
-	else
-	{
-		shift_reg_write_bit_16(&dop_sr, 2, 1);
-	}
+	gradus = 67.5 + 45.0 * i_max;
+	time_gradus = (1570.0 / 360.0) * gradus;
+
+	shift_reg_write_bit_16(&dop_sr, 2, 1);
+	HAL_Delay(time_gradus);
+	shift_reg_write_bit_16(&dop_sr, 2, 0);
+
 ////////////////////////////////////////////
 
 
@@ -674,11 +662,25 @@ int app_main(){
 
 		//volatile Uart6_error = HAL_UART_Receive(&huart6, &Uart6_data, Uart6_size, HAL_MAX_DELAY);
 
+/*
+		// так можно проставить начальное значение счетчика:
+			// __HAL_TIM_SET_COUNTER(&htim1, 32760);
+		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
+		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
+		if(currCounter != prevCounter) {
+			//char buff[16];
+
+			// выводим куда-то currCounter
+			// snprintf(buff, sizeof(buff), "%06d", currCounter);
+
+			prevCounter = currCounter;
+		}
+*/
 
 
 
 
-
+ //printf("%d",currCounter);
 
 
 
