@@ -629,7 +629,7 @@ int app_main(){
 
 
 
-/*
+
 	int oborot = 3000;
 
 ////////////////////////////////////////////
@@ -652,7 +652,9 @@ int app_main(){
 	shift_reg_write_bit_16(&dop_sr, 5, 1);
 	HAL_Delay(oborot-(max_time - start_time));
 	shift_reg_write_bit_16(&dop_sr, 5, 0);
-	*/////////////////////////////////////////
+////////////////////////////////////////////
+
+
 	while(1)
 	{
 		loop();
@@ -710,9 +712,9 @@ int app_main(){
 			I2C_ClearBusyFlagErratum(&hi2c1, 20);
 		}
 
-		current = ina219_current_convert(&ina219, secondary_data.current);
+		current = ina219_current_convert(&ina219, secondary_data.current) * 0.67034;
 
-		bus_voltage = ina219_bus_voltage_convert(&ina219, primary_data.busv);
+		bus_voltage = ina219_bus_voltage_convert(&ina219, primary_data.busv) * 1.0399;
 
 		p1_sr.flag = 0xAA;
 		p1_sr.press = bme_data.pressure;
