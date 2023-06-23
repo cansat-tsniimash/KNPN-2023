@@ -277,7 +277,7 @@ static void test_adc()
 			AD5593_ADC_4, AD5593_ADC_5, AD5593_ADC_6, AD5593_ADC_7,
 
 	};
-	for (int i = 0; i < sizeof(channels)/sizeof(channels[0]) - 1; i++)
+	for (int i = 0; i < sizeof(channels)/sizeof(channels[0]); i++)
 	{
 		uint16_t raw;
 		ad5593_channel_id_t channel = channels[i];
@@ -286,7 +286,7 @@ static void test_adc()
 			perror("bad read");
 
 		float volts_ad = raw * 3.3 / 4095;	//Volts
-		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
+		float ohms_ad = volts_ad*(2000)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
 		foto_znach[i] = lux_ad;
@@ -552,7 +552,7 @@ int app_main(){
 
 	}
 
-	//shift_reg_write_bit_16(&dop_sr, 2, 1);
+
 
 	uint32_t perepar;
 	uint32_t zemlya;
@@ -562,39 +562,14 @@ int app_main(){
 
 
 
-//	photor = photorezistor_get_lux(phor_cfg);
-	float photor_state = photor;
-/*
-
-
-	shift_reg_write_bit_16(&dop_sr, 6, 0);
-	shift_reg_write_bit_16(&dop_sr, 7, 0);
-	shift_reg_write_bit_16(&dop_sr, 0, 0);
-
-	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 6, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 6, 0);
-	HAL_Delay(1000);
-	shift_reg_write_bit_16(&dop_sr, 7, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 7, 0);
-	HAL_Delay(3000);
-	shift_reg_write_bit_16(&dop_sr, 0, 1);
-	HAL_Delay(2000);
-	shift_reg_write_bit_16(&dop_sr, 0, 0);
 
 
 
 
-	HAL_Delay(5000);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,1);
-	HAL_Delay(10000);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,0);
-
-*/
+	//shift_reg_write_bit_16(&dop_sr, 1, 1);
 
 	int64_t cookie;
+
 
 
 	test_adc();
@@ -604,92 +579,21 @@ int app_main(){
 	foto_max = foto_znach[0];
 	float gradus;
 	int time_gradus;
-
-///////////////////////////////////////////
-	for(int i = 0;i < 8;i++ )
-	{
-		printf("%9.2f \n", foto_znach[i]);
-
-		if(foto_znach[i] > foto_max)
-		{
-			foto_max = foto_znach[i];
-			i_max = i;
-		}
-	}
-
-
-	gradus = 67.5 + 45.0 * i_max;
-	time_gradus = (1570.0 / 360.0) * gradus;
-
-	shift_reg_write_bit_16(&dop_sr, 2, 1);
-	HAL_Delay(time_gradus);
-	shift_reg_write_bit_16(&dop_sr, 2, 0);
-
-////////////////////////////////////////////
-
-
-
-
 	int oborot = 3000;
-
-////////////////////////////////////////////
 	float max = 0;
 	float now;
-	uint32_t max_time = HAL_GetTick();
-	shift_reg_write_bit_16(&dop_sr, 4, 1);
-	uint32_t start_time = HAL_GetTick();
-	while(HAL_GetTick() - start_time < oborot)
-	{
-		now = photorezistor_get_lux(phor_cfg);
-		if (now > max)
-		{
-			max = now;
-			max_time = HAL_GetTick();
-		}
-	}
-	shift_reg_write_bit_16(&dop_sr, 4, 0);
-
-	shift_reg_write_bit_16(&dop_sr, 5, 1);
-	HAL_Delay(oborot-(max_time - start_time));
-	shift_reg_write_bit_16(&dop_sr, 5, 0);
-////////////////////////////////////////////
-
+	photor = foto_znach[7];
+	float photor_state = photor;
 
 	while(1)
 	{
-		loop();
-		gps_work();
-		gps_get_coords(&cookie, &p3_sr.latitude, &p3_sr.longitude, &p3_sr.height, &p3_sr.fix);
-
-
-		//volatile Uart6_error = HAL_UART_Receive(&huart6, &Uart6_data, Uart6_size, HAL_MAX_DELAY);
-
-/*
-		// так можно проставить начальное значение счетчика:
-			// __HAL_TIM_SET_COUNTER(&htim1, 32760);
-		int currCounter = __HAL_TIM_GET_COUNTER(&htim3);
-		currCounter = 32767 - ((currCounter-1) & 0xFFFF);
-		if(currCounter != prevCounter) {
-			//char buff[16];
-
-			// выводим куда-то currCounter
-			// snprintf(buff, sizeof(buff), "%06d", currCounter);
-
-			prevCounter = currCounter;
-		}
-*/
-
-
-
-
- //printf("%d",currCounter);
 
 
 
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
-		//photor = photorezistor_get_lux(phor_cfg);
+
 
 		if (HAL_GetTick() - ds_start_time > 750)
 		{
@@ -736,13 +640,12 @@ int app_main(){
 		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
 
 		p3_sr.flag = 0xCC;
-		p3_sr.latitude = 3;
-		p3_sr.longitude = 4;
-		p3_sr.time_s = 7;
-		p3_sr.time_us = 4325;
-		p3_sr.fix = 5;
-		p3_sr.height = 1;
 
+
+		loop();
+		gps_work();
+		gps_get_coords(&cookie, &p3_sr.latitude, &p3_sr.longitude, &p3_sr.height, &p3_sr.fix);
+		gps_get_time(&cookie,&p3_sr.time_s,&p3_sr.time_us);
 
 		if (resm == FR_OK){
 			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10, 1);
@@ -795,7 +698,7 @@ int app_main(){
 
 
 
-/*
+
 		switch(state){
 			case STATE_BEFORE_LAUNCH:
 			{
@@ -824,7 +727,7 @@ int app_main(){
 			{
 				height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
 				if(height <= 6.3){
-					//shift_reg_write_bit_16(&dop_sr, 6, 1);
+					shift_reg_write_bit_16(&dop_sr, 6, 1);
 					state = STATE_DESENT;
 					perepar = HAL_GetTick();
 				}
@@ -834,7 +737,7 @@ int app_main(){
 			{
 				if(HAL_GetTick() - perepar >= 3000)
 				{
-					//shift_reg_write_bit_16(&dop_sr, 6, 0);
+					shift_reg_write_bit_16(&dop_sr, 6, 0);
 					zemlya = HAL_GetTick();
 					if(HAL_GetTick() - zemlya >= 2000){
 						state = STATE_LANDING;
@@ -845,21 +748,71 @@ int app_main(){
 			case STATE_LANDING:
 			{
 				paneli = HAL_GetTick();
-				//shift_reg_write_bit_16(&dop_sr, 1, 1);
+				shift_reg_write_bit_16(&dop_sr, 1, 1);
 				if(HAL_GetTick() - paneli >= 1000)
 				{
-					//shift_reg_write_bit_16(&dop_sr, 1, 0);
+					shift_reg_write_bit_16(&dop_sr, 1, 0);
 					state = STATE_SUN_SEARCH;
 				}
 			}
 			break;
 			case STATE_SUN_SEARCH:
 			{
+				for(int i = 0;i < 8;i++ )
+					{
+						printf("%9.2f \n", foto_znach[i]);
 
+						if(foto_znach[i] > foto_max)
+						{
+							foto_max = foto_znach[i];
+							i_max = i;
+						}
+					}
+
+					gradus = 67.5 + 45.0 * i_max;
+					time_gradus = (6000.0 / 360.0) * gradus;
+
+					shift_reg_write_bit_16(&dop_sr, 2, 1);
+					HAL_Delay(time_gradus);
+					shift_reg_write_bit_16(&dop_sr, 2, 0);
+
+					HAL_Delay(100);
+
+					uint32_t max_time = HAL_GetTick();
+					shift_reg_write_bit_16(&dop_sr, 4, 1);
+					uint32_t start_time = HAL_GetTick();
+					while(HAL_GetTick() - start_time < oborot)
+					{
+						now = photorezistor_get_lux(phor_cfg);
+						if (now > max)
+						{
+							max = now;
+							max_time = HAL_GetTick();
+						}
+					}
+					shift_reg_write_bit_16(&dop_sr, 4, 0);
+
+					shift_reg_write_bit_16(&dop_sr, 5, 1);
+					HAL_Delay(oborot-(max_time - start_time));
+					shift_reg_write_bit_16(&dop_sr, 5, 0);
+					state = STATE_ENERGY;
+			}
+			case STATE_ENERGY:
+			{
+				uint32_t time_pishalka = HAL_GetTick();
+				if(HAL_GetTick() >= time_pishalka - 3000)
+				{
+					shift_reg_write_bit_16(&dop_sr, 9, 0);
+					time_pishalka = HAL_GetTick();
+				}
+				else
+				{
+					shift_reg_write_bit_16(&dop_sr, 9, 1);
+				}
 
 			}
 		}
-*/
+
 
 
 
