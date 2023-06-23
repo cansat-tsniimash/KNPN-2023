@@ -421,7 +421,7 @@ int app_main(){
 
 	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
 	nrf_config.rf_channel = 101;
-	nrf_config.tx_power = NRF24_TXPOWER_MINUS_18_DBM;
+	nrf_config.tx_power = NRF24_TXPOWER_MINUS_0_DBM;
 	nrf24_setup_rf(&nrf, &nrf_config);
 
 	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
