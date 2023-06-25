@@ -286,7 +286,7 @@ static void test_adc()
 			perror("bad read");
 
 		float volts_ad = raw * 3.3 / 4095;	//Volts
-		float ohms_ad = volts_ad*(2000)/(3.3-volts_ad);		//Ohms
+		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
 		foto_znach[i] = lux_ad;
@@ -320,12 +320,11 @@ int app_main(){
 	FRESULT resm; // результат выполнения функции
 
 
-	float power;
+
 	char str_buf[300];
 	uint16_t num_written;
 	float current;
 	float bus_voltage;
-	float shunt_voltage;
 	float lsm_gyro[3];
 	float lsm_temp;
 	float lsm_accel[3];
@@ -344,28 +343,29 @@ int app_main(){
 	nrf24_fifo_status_t  rx_status;
 	nrf24_fifo_status_t  tx_status;
 	nrf_state_t nrf_state = NRF_PACK_12;
-	int mission_state = 0;
 	int a = 0;
-	int n = 0;
 	uint Bytes;
 	state_t state = STATE_BEFORE_LAUNCH;
-	state = STATE_BEFORE_LAUNCH;
-	int state_lux = 0;
-	int x;
 
-	uint8_t Uart6_data;
-	uint16_t Uart6_size = 1;
-	HAL_StatusTypeDef Uart6_error;
+
+
 
 	uint32_t tick;
-	//GPIO_PinState IA = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
-	//GPIO_PinState IB = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5);
+
 
 	uint32_t nrf_start_time;
 	uint32_t ds_start_time;
 
 
+	uint64_t pack_time_s;
 
+
+
+	float pack_latitude;
+	float pack_longitude;
+	float pack_height;
+	uint32_t pack_time_us;
+	int pack_fix;
 
 	// Настройка сдвигового регистра IMU
 	shift_reg_t imu_sr;
@@ -421,7 +421,7 @@ int app_main(){
 
 	nrf_config.data_rate = NRF24_DATARATE_250_KBIT;
 	nrf_config.rf_channel = 101;
-	nrf_config.tx_power = NRF24_TXPOWER_MINUS_0_DBM;
+	nrf_config.tx_power = NRF24_TXPOWER_MINUS_6_DBM;
 	nrf24_setup_rf(&nrf, &nrf_config);
 
 	nrf_protocol_config.address_width = NRF24_ADDRES_WIDTH_5_BYTES;
@@ -564,12 +564,7 @@ int app_main(){
 
 
 
-
-
-	//shift_reg_write_bit_16(&dop_sr, 1, 1);
-
 	int64_t cookie;
-
 
 
 	test_adc();
@@ -579,21 +574,25 @@ int app_main(){
 	foto_max = foto_znach[0];
 	float gradus;
 	int time_gradus;
+	photor = foto_znach[7];
+	float photor_state = photor;
 	int oborot = 3000;
 	float max = 0;
 	float now;
-	photor = foto_znach[7];
-	float photor_state = photor;
+
+
+
 
 	while(1)
 	{
+		//loop();
 
 
 
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
-
+		//photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
 		{
@@ -626,7 +625,7 @@ int app_main(){
 		p1_sr.temp_bme = bme_data.temperature * 100;
 		p1_sr.current = current * 1000;
 		p1_sr.bus_voltage = bus_voltage * 1000;
-		p1_sr.state = mission_state;
+		p1_sr.state = state;
 
 		p2_sr.flag =0xBB;
 		p2_sr.lis_x = lis[0] * 1000;
@@ -639,13 +638,18 @@ int app_main(){
 		p2_sr.lsm_g_y = lsm_gyro[1] * 1000;
 		p2_sr.lsm_g_z = lsm_gyro[2] * 1000;
 
-		p3_sr.flag = 0xCC;
-
-
-		loop();
 		gps_work();
-		gps_get_coords(&cookie, &p3_sr.latitude, &p3_sr.longitude, &p3_sr.height, &p3_sr.fix);
-		gps_get_time(&cookie,&p3_sr.time_s,&p3_sr.time_us);
+		gps_get_coords(&cookie, &pack_latitude, &pack_longitude, &pack_height, &pack_fix);
+		gps_get_time(&cookie,&pack_time_s,&pack_time_us);
+
+		p3_sr.flag = 0xCC;
+		p3_sr.time_s = (uint32_t)pack_time_s;
+		p3_sr.latitude = pack_latitude;
+		p3_sr.longitude = pack_longitude;
+		p3_sr.height = pack_height;
+		p3_sr.time_us = pack_time_us;
+		p3_sr.fix = pack_fix;
+
 
 		if (resm == FR_OK){
 			HAL_GPIO_WritePin(GPIOB,GPIO_PIN_10, 1);
@@ -726,7 +730,7 @@ int app_main(){
 			case STATE_PARACHUTE_DESENT:
 			{
 				height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
-				if(height <= 6.3){
+				if(height <= 4){
 					shift_reg_write_bit_16(&dop_sr, 6, 1);
 					state = STATE_DESENT;
 					perepar = HAL_GetTick();
@@ -758,44 +762,50 @@ int app_main(){
 			break;
 			case STATE_SUN_SEARCH:
 			{
+
 				for(int i = 0;i < 8;i++ )
+				{
+					printf("%9.2f \n", foto_znach[i]);
+
+					if(foto_znach[i] > foto_max)
 					{
-						printf("%9.2f \n", foto_znach[i]);
-
-						if(foto_znach[i] > foto_max)
-						{
-							foto_max = foto_znach[i];
-							i_max = i;
-						}
+						foto_max = foto_znach[i];
+						i_max = i;
 					}
+				}
 
-					gradus = 67.5 + 45.0 * i_max;
-					time_gradus = (6000.0 / 360.0) * gradus;
 
-					shift_reg_write_bit_16(&dop_sr, 2, 1);
-					HAL_Delay(time_gradus);
-					shift_reg_write_bit_16(&dop_sr, 2, 0);
+				gradus = 67.5 + 45.0 * i_max;
+				time_gradus = (6000.0 / 360.0) * gradus;
 
-					HAL_Delay(100);
+				shift_reg_write_bit_16(&dop_sr, 2, 1);
+				HAL_Delay(time_gradus);
+				shift_reg_write_bit_16(&dop_sr, 2, 0);
 
-					uint32_t max_time = HAL_GetTick();
-					shift_reg_write_bit_16(&dop_sr, 4, 1);
-					uint32_t start_time = HAL_GetTick();
-					while(HAL_GetTick() - start_time < oborot)
+
+
+				uint32_t max_time = HAL_GetTick();
+				shift_reg_write_bit_16(&dop_sr, 4, 1);
+				uint32_t start_time = HAL_GetTick();
+				while(HAL_GetTick() - start_time < oborot)
+				{
+					now = photorezistor_get_lux(phor_cfg);
+					if (now > max)
 					{
-						now = photorezistor_get_lux(phor_cfg);
-						if (now > max)
-						{
-							max = now;
-							max_time = HAL_GetTick();
-						}
+						max = now;
+						max_time = HAL_GetTick();
 					}
-					shift_reg_write_bit_16(&dop_sr, 4, 0);
+				}
+				shift_reg_write_bit_16(&dop_sr, 4, 0);
 
-					shift_reg_write_bit_16(&dop_sr, 5, 1);
-					HAL_Delay(oborot-(max_time - start_time));
-					shift_reg_write_bit_16(&dop_sr, 5, 0);
-					state = STATE_ENERGY;
+				shift_reg_write_bit_16(&dop_sr, 5, 1);
+				HAL_Delay(oborot-(max_time - start_time));
+				shift_reg_write_bit_16(&dop_sr, 5, 0);
+
+				HAL_Delay(100);
+
+				state = STATE_ENERGY;
+
 			}
 			case STATE_ENERGY:
 			{
@@ -809,7 +819,6 @@ int app_main(){
 				{
 					shift_reg_write_bit_16(&dop_sr, 9, 1);
 				}
-
 			}
 		}
 
