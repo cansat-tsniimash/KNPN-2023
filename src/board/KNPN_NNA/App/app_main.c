@@ -34,6 +34,7 @@ typedef struct paket_1{
 	uint16_t n;
 	int16_t temp_bme;
 	uint32_t press;
+	float height_bme;
 	float current;
 	int16_t bus_voltage;
 	int8_t state;
@@ -190,8 +191,8 @@ uint16_t sd_parse_to_bytes_pac1(char *buffer, paket_1 *paket1) {
     memset(buffer, 0, 300);
     uint16_t num_written = snprintf(
             buffer, 300,
-			"%d;%ld;%d;%d;%ld;%f;%d;%d;%ld;%d\n",
-			paket1->flag,paket1->time_pak,paket1->n,paket1->temp_bme,paket1->press,
+			"%d;%ld;%d;%d;%ld;%f;4%f;%d;%d;%ld;%d\n",
+			paket1->flag,paket1->time_pak,paket1->n,paket1->temp_bme,paket1->press, paket1->height_bme,
 			paket1->current,paket1->bus_voltage,paket1->state,paket1->photor,paket1->crc);
     return num_written;
 }
@@ -289,7 +290,7 @@ static void test_adc()
 		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
-		foto_znach[i] = lux_ad;
+		foto_znach[i] = ohms_ad;
 
 		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
 		//printf("%9.2f", lux_ad);
@@ -336,7 +337,7 @@ int app_main(){
 
 	float photor;
 
-	float height;
+	float height = 0;
 	uint16_t ds_temp;
 	bool crc_ds = false;
 
@@ -561,10 +562,12 @@ int app_main(){
 
 
 
-
-
-
 	int64_t cookie;
+
+
+	int press_state;
+	bme_data = bme_read_data(&bme);
+	press_state = bme_data.pressure;
 
 
 	test_adc();
@@ -574,7 +577,7 @@ int app_main(){
 	foto_max = foto_znach[0];
 	float gradus;
 	int time_gradus;
-	photor = foto_znach[7];
+	photor = foto_znach[0];
 	float photor_state = photor;
 	int oborot = 3000;
 	float max = 0;
@@ -592,6 +595,9 @@ int app_main(){
 		lsmread(&stm_ctx, &lsm_temp, &lsm_accel, &lsm_gyro);
 		lisread(&lis_ctx, &lis_temp, &lis);
 		bme_data = bme_read_data(&bme);
+		height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
+		test_adc();
+		photor = foto_znach[0];
 		//photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
@@ -621,6 +627,7 @@ int app_main(){
 
 		p1_sr.flag = 0xAA;
 		p1_sr.press = bme_data.pressure;
+		p1_sr.height_bme = height;
 		p1_sr.photor = photor * 100;
 		p1_sr.temp_bme = bme_data.temperature * 100;
 		p1_sr.current = current * 1000;
@@ -698,7 +705,6 @@ int app_main(){
 			res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
 		}
 
-		int press_state = 0;
 
 
 
@@ -709,6 +715,7 @@ int app_main(){
 				uint8_t knopka = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4);
 				if(knopka == 1){
 					press_state = bme_data.pressure;
+					photor_state = photor;
 					shift_reg_write_bit_16(&imu_sr, 12, 0);
 					shift_reg_write_bit_16(&imu_sr, 11, 1);
 					doukladki = HAL_GetTick();
@@ -719,7 +726,7 @@ int app_main(){
 			case STATE_IN_ROCKET:
 			{
 
-				if((photor >= 0.80 * photor_state) && (HAL_GetTick() - doukladki >= 10000))
+				if((photor <= 1.20 * photor_state) && (HAL_GetTick() - doukladki >= 10000))
 				{
 					state = STATE_PARACHUTE_DESENT;
 					shift_reg_write_bit_16(&imu_sr, 11, 0);
@@ -729,8 +736,7 @@ int app_main(){
 			break;
 			case STATE_PARACHUTE_DESENT:
 			{
-				height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
-				if(height <= 4){
+				if(height <= 6.3){
 					shift_reg_write_bit_16(&dop_sr, 6, 1);
 					state = STATE_DESENT;
 					perepar = HAL_GetTick();
