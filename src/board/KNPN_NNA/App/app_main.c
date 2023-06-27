@@ -290,7 +290,7 @@ static void test_adc()
 		float ohms_ad = volts_ad*(3300)/(3.3-volts_ad);		//Ohms
 		float lux_ad = exp((3.823-log(ohms_ad/1000))/0.816)*10.764;
 
-		foto_znach[i] = ohms_ad;
+		foto_znach[i] = lux_ad;
 
 		//printf("%d, %d, %d, %f\n", i, rc, channel, lux_ad);
 		//printf("%9.2f", lux_ad);
@@ -577,13 +577,13 @@ int app_main(){
 	foto_max = foto_znach[0];
 	float gradus;
 	int time_gradus;
-	photor = foto_znach[0];
 	float photor_state = photor;
 	int oborot = 3000;
 	float max = 0;
 	float now;
 
-
+	int landing = 0;
+	int opening = 0;
 
 
 	while(1)
@@ -597,7 +597,7 @@ int app_main(){
 		bme_data = bme_read_data(&bme);
 		height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
 		test_adc();
-		photor = foto_znach[0];
+		photor = foto_znach[2];
 		//photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
@@ -748,21 +748,31 @@ int app_main(){
 				if(HAL_GetTick() - perepar >= 3000)
 				{
 					shift_reg_write_bit_16(&dop_sr, 6, 0);
-					zemlya = HAL_GetTick();
-					if(HAL_GetTick() - zemlya >= 2000){
-						state = STATE_LANDING;
+					if (landing == 0){
+						zemlya = HAL_GetTick();
+						landing = 1;
+					}
+					else {
+						if(HAL_GetTick() - zemlya >= 2000){
+							state = STATE_LANDING;
+						}
 					}
 				}
 			}
 			break;
 			case STATE_LANDING:
 			{
-				paneli = HAL_GetTick();
-				shift_reg_write_bit_16(&dop_sr, 1, 1);
-				if(HAL_GetTick() - paneli >= 1000)
-				{
-					shift_reg_write_bit_16(&dop_sr, 1, 0);
-					state = STATE_SUN_SEARCH;
+				//shift_reg_write_bit_16(&dop_sr, 1, 1);
+				if (opening == 0){
+					paneli = HAL_GetTick();
+					opening = 1;
+				}
+				else {
+					if(HAL_GetTick() - paneli >= 1000)
+					{
+						shift_reg_write_bit_16(&dop_sr, 1, 0);
+						state = STATE_SUN_SEARCH;
+					}
 				}
 			}
 			break;
