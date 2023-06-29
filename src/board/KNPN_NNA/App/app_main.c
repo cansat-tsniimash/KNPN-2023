@@ -112,9 +112,11 @@ uint16_t Crc16(uint8_t *buf, uint16_t len) {
 
 typedef enum
 {
-	NRF_PACK_12,
+	NRF_PACK_1,
+	NRF_PACK_2,
 	NRF_PACK_3,
 	NRF_WAIT,
+
 }nrf_state_t;
 
 typedef enum
@@ -124,8 +126,10 @@ typedef enum
 	STATE_PARACHUTE_DESENT = 2,
 	STATE_DESENT = 3,
 	STATE_LANDING = 4,
-	STATE_SUN_SEARCH = 5,
-	STATE_ENERGY = 6,
+	STATE_OPEN_SP = 5,
+	STATE_SUN_SEARCH = 6,
+	STATE_ENERGY = 7,
+
 }state_t;
 
 int32_t prevCounter = 0;
@@ -343,7 +347,7 @@ int app_main(){
 
 	nrf24_fifo_status_t  rx_status;
 	nrf24_fifo_status_t  tx_status;
-	nrf_state_t nrf_state = NRF_PACK_12;
+	nrf_state_t nrf_state = NRF_PACK_1;
 	int a = 0;
 	uint Bytes;
 	state_t state = STATE_BEFORE_LAUNCH;
@@ -547,9 +551,12 @@ int app_main(){
 		res2csv = f_open(&HenFile_2csv, csv2, FA_WRITE | FA_OPEN_APPEND); // открытие файла
 		res3csv = f_open(&HenFile_3csv, csv3, FA_WRITE | FA_OPEN_APPEND); // открытие файла
 
-		res1csv = f_puts("flag;time_pak;n;trmp_bme;press;current;bus_voltage;state;photor;crc\n", &HenFile_1csv);
+		res1csv = f_puts("flag;time_pak;n;temp_bme;press;height_bme;current;bus_voltage;state;photor;crc\n", &HenFile_1csv);
+		res1csv = f_sync(&HenFile_1);
 		res2csv = f_puts("flag;time_pak;n;lis_x;lis_y;lis_z;lsm_a_x;lsm_a_y;lsm_a_z;lsm_g_x;lsm_g_y;lsm_g_z;crc\n",&HenFile_2csv );
-		res3csv = f_puts("flag;time_pak;n;temp;latitude;longitude;height;time_s;time_us;fix;crc\n" , &HenFile_3csv );
+		res2csv = f_sync(&HenFile_2);
+		res3csv = f_puts("flag;time_pak;n;temp;latitude;longitude;height;time_s;time_us;fix;crc\n", &HenFile_3csv );
+		res3csv = f_sync(&HenFile_3);
 
 	}
 
@@ -559,7 +566,7 @@ int app_main(){
 	uint32_t zemlya;
 	uint32_t paneli;
 	uint32_t doukladki ;
-
+	uint32_t trubki ;
 
 
 	int64_t cookie;
@@ -577,14 +584,23 @@ int app_main(){
 	foto_max = foto_znach[0];
 	float gradus;
 	int time_gradus;
-	float photor_state = photor;
+	float photor_state;
 	int oborot = 3000;
 	float max = 0;
 	float now;
 
 	int landing = 0;
 	int opening = 0;
+	int vertical = 0;
+	int search = 0;
+	uint32_t time_pere_paneli;
 
+	//shift_reg_write_bit_16(&dop_sr, 1, 1);
+
+	//shift_reg_write_bit_16(&dop_sr, 0, 1);
+	//shift_reg_write_bit_16(&dop_sr, 6, 1);
+	//shift_reg_write_bit_16(&dop_sr, 7, 1);
+	//shift_reg_write_bit_16(&dop_sr, 9, 1);
 
 	while(1)
 	{
@@ -597,7 +613,7 @@ int app_main(){
 		bme_data = bme_read_data(&bme);
 		height = 44330 * (1 - pow(bme_data.pressure / press_state, 1.0 / 5.255));
 		test_adc();
-		photor = foto_znach[2];
+		photor = foto_znach[0];
 		//photor = photorezistor_get_lux(phor_cfg);
 
 		if (HAL_GetTick() - ds_start_time > 750)
@@ -726,7 +742,7 @@ int app_main(){
 			case STATE_IN_ROCKET:
 			{
 
-				if((photor <= 1.20 * photor_state) && (HAL_GetTick() - doukladki >= 10000))
+				if((photor >= 0.8 * photor_state) && (HAL_GetTick() - doukladki >= 10000))
 				{
 					state = STATE_PARACHUTE_DESENT;
 					shift_reg_write_bit_16(&imu_sr, 11, 0);
@@ -745,7 +761,7 @@ int app_main(){
 			break;
 			case STATE_DESENT:
 			{
-				if(HAL_GetTick() - perepar >= 3000)
+				if(HAL_GetTick() - perepar >= 1000)
 				{
 					shift_reg_write_bit_16(&dop_sr, 6, 0);
 					if (landing == 0){
@@ -762,23 +778,48 @@ int app_main(){
 			break;
 			case STATE_LANDING:
 			{
-				//shift_reg_write_bit_16(&dop_sr, 1, 1);
+				shift_reg_write_bit_16(&dop_sr, 7, 1);
+
 				if (opening == 0){
 					paneli = HAL_GetTick();
 					opening = 1;
 				}
-				else {
-					if(HAL_GetTick() - paneli >= 1000)
+				else
+				{
+					if(HAL_GetTick() - paneli >= 3000)
 					{
-						shift_reg_write_bit_16(&dop_sr, 1, 0);
-						state = STATE_SUN_SEARCH;
+						shift_reg_write_bit_16(&dop_sr, 7, 0);
+						shift_reg_write_bit_16(&dop_sr, 1, 1);
+						if (vertical == 0){
+							trubki = HAL_GetTick();
+							vertical = 1;
+						}
+						else {
+							if (HAL_GetTick() - trubki >= 5000){
+								state = STATE_OPEN_SP;
+							}
+						}
 					}
+				}
+			}
+			break;
+			case STATE_OPEN_SP:
+			{
+				shift_reg_write_bit_16(&dop_sr, 1, 0);
+				shift_reg_write_bit_16(&dop_sr, 0, 1);
+				if(search == 0){
+					time_pere_paneli = HAL_GetTick();
+					search = 1;
+				}
+				if(HAL_GetTick() - time_pere_paneli >= 3000)
+				{
+					shift_reg_write_bit_16(&dop_sr, 0, 0);
+					state = STATE_SUN_SEARCH;
 				}
 			}
 			break;
 			case STATE_SUN_SEARCH:
 			{
-
 				for(int i = 0;i < 8;i++ )
 				{
 					printf("%9.2f \n", foto_znach[i]);
@@ -825,16 +866,8 @@ int app_main(){
 			}
 			case STATE_ENERGY:
 			{
-				uint32_t time_pishalka = HAL_GetTick();
-				if(HAL_GetTick() >= time_pishalka - 3000)
-				{
-					shift_reg_write_bit_16(&dop_sr, 9, 0);
-					time_pishalka = HAL_GetTick();
-				}
-				else
-				{
 					shift_reg_write_bit_16(&dop_sr, 9, 1);
-				}
+
 			}
 		}
 
@@ -842,18 +875,19 @@ int app_main(){
 
 
 		switch(nrf_state) {
-			case NRF_PACK_12:
+			case NRF_PACK_1:
 				tick = HAL_GetTick()-tick;
 				p1_sr.n++;
-				p2_sr.n++;
+				//p2_sr.n++;
 				p1_sr.time_pak = HAL_GetTick();
-				p2_sr.time_pak = HAL_GetTick();
+				//p2_sr.time_pak = HAL_GetTick();
 				p1_sr.crc = Crc16((uint8_t *)&p1_sr, sizeof(p1_sr) - 2);
-				p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				//p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
 				nrf24_fifo_write(&nrf, (uint8_t *)&p1_sr,sizeof(p1_sr ),false);
-				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+				//nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+
 				a++;
-				nrf_state = NRF_WAIT;
+				//nrf_state = NRF_WAIT;
 				nrf_start_time = HAL_GetTick();
 
 				if (resm == FR_OK){
@@ -866,6 +900,29 @@ int app_main(){
 					res1csv = f_write(&HenFile_1csv,str_buf,num_written, &Bytes); // отправка на запись в файл
 					res1csv = f_sync(&HenFile_1csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
 
+					//res2 = f_write(&HenFile_2,(uint8_t *)&p2_sr, sizeof(p2_sr), &Bytes); // отправка на запись в файл
+					//res2 = f_sync(&HenFile_2); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+
+					//num_written = sd_parse_to_bytes_pac2(str_buf, &p2_sr);
+
+					//res2csv = f_write(&HenFile_2csv,str_buf,num_written, &Bytes); // отправка на запись в файл
+					//res2csv = f_sync(&HenFile_2csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
+				}
+				nrf_state = NRF_PACK_2;
+
+			break;
+			case NRF_PACK_2:
+				tick = HAL_GetTick()-tick;
+				p2_sr.n++;
+				p2_sr.time_pak = HAL_GetTick();
+				p2_sr.crc = Crc16((uint8_t *)&p2_sr, sizeof(p2_sr) - 2);
+				nrf24_fifo_write(&nrf, (uint8_t *)&p2_sr,sizeof(p2_sr),false);
+
+				nrf_state = NRF_WAIT;
+				nrf_start_time = HAL_GetTick();
+
+				if (resm == FR_OK){
+
 					res2 = f_write(&HenFile_2,(uint8_t *)&p2_sr, sizeof(p2_sr), &Bytes); // отправка на запись в файл
 					res2 = f_sync(&HenFile_2); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
 
@@ -874,6 +931,7 @@ int app_main(){
 					res2csv = f_write(&HenFile_2csv,str_buf,num_written, &Bytes); // отправка на запись в файл
 					res2csv = f_sync(&HenFile_2csv); // запись в файл (на sd контроллер пишет не сразу, а по закрытии файла. Также можно использовать эту команду)
 				}
+
 
 			break;
 			case NRF_PACK_3:
@@ -912,7 +970,7 @@ int app_main(){
 						}
 						else
 						{
-							nrf_state = NRF_PACK_12;
+							nrf_state = NRF_PACK_1;
 						}
 						break;
 					}
@@ -926,7 +984,7 @@ int app_main(){
 					}
 					else
 					{
-						nrf_state = NRF_PACK_12;
+						nrf_state = NRF_PACK_1;
 					}
 					break;
 
