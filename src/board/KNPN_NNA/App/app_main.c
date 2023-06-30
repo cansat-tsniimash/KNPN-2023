@@ -595,12 +595,13 @@ int app_main(){
 	int search = 0;
 	uint32_t time_pere_paneli;
 
-	//shift_reg_write_bit_16(&dop_sr, 1, 1);
+	shift_reg_write_bit_16(&dop_sr, 1, 1);
 
 	//shift_reg_write_bit_16(&dop_sr, 0, 1);
 	//shift_reg_write_bit_16(&dop_sr, 6, 1);
 	//shift_reg_write_bit_16(&dop_sr, 7, 1);
 	//shift_reg_write_bit_16(&dop_sr, 9, 1);
+
 
 	while(1)
 	{
@@ -786,7 +787,7 @@ int app_main(){
 				}
 				else
 				{
-					if(HAL_GetTick() - paneli >= 3000)
+					if(HAL_GetTick() - paneli >= 1000)
 					{
 						shift_reg_write_bit_16(&dop_sr, 7, 0);
 						shift_reg_write_bit_16(&dop_sr, 1, 1);
@@ -811,7 +812,7 @@ int app_main(){
 					time_pere_paneli = HAL_GetTick();
 					search = 1;
 				}
-				if(HAL_GetTick() - time_pere_paneli >= 3000)
+				if(HAL_GetTick() - time_pere_paneli >= 1000)
 				{
 					shift_reg_write_bit_16(&dop_sr, 0, 0);
 					state = STATE_SUN_SEARCH;
