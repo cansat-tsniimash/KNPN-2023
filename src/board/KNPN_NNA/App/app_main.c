@@ -565,8 +565,10 @@ int app_main(){
 	uint32_t perepar;
 	uint32_t zemlya;
 	uint32_t paneli;
-	uint32_t doukladki ;
-	uint32_t trubki ;
+	uint32_t doukladki;
+	uint32_t trubki;
+	uint32_t time_pishalka_off;
+	uint32_t time_pishalka_on;
 
 
 	int64_t cookie;
@@ -593,14 +595,17 @@ int app_main(){
 	int opening = 0;
 	int vertical = 0;
 	int search = 0;
+	int energy = 0;
 	uint32_t time_pere_paneli;
 
-	shift_reg_write_bit_16(&dop_sr, 1, 1);
+	//shift_reg_write_bit_16(&dop_sr, 1, 1);
 
 	//shift_reg_write_bit_16(&dop_sr, 0, 1);
 	//shift_reg_write_bit_16(&dop_sr, 6, 1);
 	//shift_reg_write_bit_16(&dop_sr, 7, 1);
 	//shift_reg_write_bit_16(&dop_sr, 9, 1);
+
+
 
 
 	while(1)
@@ -867,8 +872,23 @@ int app_main(){
 			}
 			case STATE_ENERGY:
 			{
+				if (energy == 0){
+				time_pishalka_off = HAL_GetTick() + 3000;
+				time_pishalka_on = HAL_GetTick() + 5000;
+				energy = 1;
+			}
+			if(HAL_GetTick() >= time_pishalka_off)
+			{
+				shift_reg_write_bit_16(&dop_sr, 9, 0);
+				time_pishalka_off = HAL_GetTick() + 3000;
+			}
+			else
+			{
+				if (HAL_GetTick() >= time_pishalka_on){
 					shift_reg_write_bit_16(&dop_sr, 9, 1);
-
+								time_pishalka_on = HAL_GetTick() + 4000;
+				}
+			}
 			}
 		}
 
@@ -1005,7 +1025,9 @@ int app_main(){
 
 
 
+
 	}
+
 
 	return 0;
 }
